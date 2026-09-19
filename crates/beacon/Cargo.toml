@@ -1,0 +1,15 @@
+[package]
+name = "beacon"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+beacon-core = { path = "../beacon-core" }
+tokio = { version = "1.36", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+uuid = { version = "1.7", features = ["v7"] }
+thiserror = "1.0"
