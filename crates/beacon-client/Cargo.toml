@@ -1,0 +1,26 @@
+[package]
+name = "beacon-client"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "open-humanity"
+path = "src/main.rs"
+
+[dependencies]
+beacon-core = { path = "../beacon-core" }
+tokio = { version = "1.36", features = ["full"] }
+rusqlite = { version = "0.31", features = ["bundled"] }
+reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+tempfile = "3.10"
+uuid = { version = "1.7", features = ["v7"] }
+thiserror = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+rand = "0.8"
+x25519-dalek = { version = "2.0", features = ["static_secrets"] }
