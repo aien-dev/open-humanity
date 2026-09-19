@@ -22,7 +22,7 @@ mod serde_bytes_64 {
     }
 }
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum BeaconError {
     #[error("Datagram exceeds maximum size limit of {0} bytes (got {1})")]
     DatagramTooLarge(usize, usize),
@@ -38,6 +38,10 @@ pub enum BeaconError {
     SignatureVerificationFailed,
     #[error("Cryptographic decryption failed")]
     DecryptionFailed,
+    #[error("Timestamp drift exceeded: {drift_secs}s exceeds limit of {max_allowed}s")]
+    TimestampDrift { drift_secs: u64, max_allowed: u64 },
+    #[error("Replay attack detected for beacon ID: {0}")]
+    ReplayDetected(Uuid),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

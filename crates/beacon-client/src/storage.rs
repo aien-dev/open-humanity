@@ -260,6 +260,53 @@ impl BeaconStorage {
         )?;
         Ok(())
     }
+
+    pub fn transaction(&mut self) -> std::result::Result<rusqlite::Transaction<'_>, StorageError> {
+        Ok(self.conn.transaction()?)
+    }
+
+    pub fn count_outbound(&self) -> std::result::Result<usize, StorageError> {
+        let mut stmt = self.conn.prepare("SELECT COUNT(*) FROM beacons_out")?;
+        let count: usize = stmt.query_row([], |row| row.get(0))?;
+        Ok(count)
+    }
+
+    pub fn count_inbound(&self) -> std::result::Result<usize, StorageError> {
+        let mut stmt = self.conn.prepare("SELECT COUNT(*) FROM beacons_in")?;
+        let count: usize = stmt.query_row([], |row| row.get(0))?;
+        Ok(count)
+    }
+
+    pub fn record_outbound_beacon_tx(
+        tx: &rusqlite::Transaction<'_>,
+        beacon: &DistressNanobeacon,
+    ) -> std::result::Result<(), StorageError> {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+
+        tx.execute(
+            "INSERT OR REPLACE INTO beacons_out (
+                id, timestamp, topic, sender_pubkey, fingerprint_hash,
+                compiler_code, arch, title, compact_summary, status, created_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+            params![
+                beacon.beacon_id.to_string(),
+                beacon.timestamp,
+                beacon.topic as u8,
+                &beacon.sender_pubkey[..],
+                &beacon.fingerprint.hash[..],
+                beacon.fingerprint.compiler_code,
+                beacon.fingerprint.hardware_arch,
+                beacon.title,
+                beacon.compact_summary,
+                "pending",
+                now,
+            ],
+        )?;
+        Ok(())
+    }
 }
 
 fn dirs_fallback_local_data() -> PathBuf {
