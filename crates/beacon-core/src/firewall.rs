@@ -17,11 +17,11 @@ pub enum FirewallViolation {
     OpenAiKey(String),
     #[error("Detected Anthropic API Key in beacon payload: {0}")]
     AnthropicKey(String),
-    #[error("Detected Google API Key in beacon payload: {0}")]
+    #[error("Detected Google API Key in payload: {0}")]
     GoogleApiKey(String),
-    #[error("Detected Stripe API Key in beacon payload: {0}")]
+    #[error("Detected Stripe API Key in payload: {0}")]
     StripeKey(String),
-    #[error("Detected HuggingFace Token in beacon payload: {0}")]
+    #[error("Detected HuggingFace Token in payload: {0}")]
     HuggingFaceToken(String),
     #[error("Detected Private Key block in beacon payload")]
     PrivateKeyBlock,

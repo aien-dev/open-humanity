@@ -367,15 +367,15 @@ mod tests {
     #[test]
     fn test_crypto_replay_attack_resistance() {
         let mut protector = ReplayProtector::new(100);
-        let beacon_id = Uuid::now_v7();
+        let packet_id = Uuid::now_v7();
 
-        assert!(protector.check_and_record(&beacon_id).is_ok());
+        assert!(protector.check_and_record(&packet_id).is_ok());
 
-        let replay_result = protector.check_and_record(&beacon_id);
+        let replay_result = protector.check_and_record(&packet_id);
         assert_eq!(
             replay_result,
-            Err(BeaconError::ReplayDetected(beacon_id)),
-            "Replay of same beacon ID must be rejected"
+            Err(BeaconError::ReplayDetected(packet_id)),
+            "Replay of identical packet ID must be rejected"
         );
 
         let distinct_id = Uuid::now_v7();

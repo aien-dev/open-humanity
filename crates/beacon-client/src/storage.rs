@@ -279,7 +279,7 @@ impl BeaconStorage {
 
     pub fn record_outbound_beacon_tx(
         tx: &rusqlite::Transaction<'_>,
-        beacon: &DistressNanobeacon,
+        packet: &DistressNanobeacon,
     ) -> std::result::Result<(), StorageError> {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -292,15 +292,15 @@ impl BeaconStorage {
                 compiler_code, arch, title, compact_summary, status, created_at
             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
             params![
-                beacon.beacon_id.to_string(),
-                beacon.timestamp,
-                beacon.topic as u8,
-                &beacon.sender_pubkey[..],
-                &beacon.fingerprint.hash[..],
-                beacon.fingerprint.compiler_code,
-                beacon.fingerprint.hardware_arch,
-                beacon.title,
-                beacon.compact_summary,
+                packet.beacon_id.to_string(),
+                packet.timestamp,
+                packet.topic as u8,
+                &packet.sender_pubkey[..],
+                &packet.fingerprint.hash[..],
+                packet.fingerprint.compiler_code,
+                packet.fingerprint.hardware_arch,
+                packet.title,
+                packet.compact_summary,
                 "pending",
                 now,
             ],

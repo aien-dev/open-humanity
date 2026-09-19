@@ -137,19 +137,19 @@ impl ReplayProtector {
         }
     }
 
-    pub fn check_and_record(&mut self, beacon_id: &Uuid) -> Result<(), BeaconError> {
-        if self.seen.contains(beacon_id) {
-            return Err(BeaconError::ReplayDetected(*beacon_id));
+    pub fn check_and_record(&mut self, packet_id: &Uuid) -> Result<(), BeaconError> {
+        if self.seen.contains(packet_id) {
+            return Err(BeaconError::ReplayDetected(*packet_id));
         }
         if self.seen.len() >= self.max_capacity {
             self.seen.clear();
         }
-        self.seen.insert(*beacon_id);
+        self.seen.insert(*packet_id);
         Ok(())
     }
 
-    pub fn is_seen(&self, beacon_id: &Uuid) -> bool {
-        self.seen.contains(beacon_id)
+    pub fn is_seen(&self, packet_id: &Uuid) -> bool {
+        self.seen.contains(packet_id)
     }
 
     pub fn len(&self) -> usize {

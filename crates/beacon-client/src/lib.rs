@@ -57,9 +57,8 @@ mod tests {
     #[tokio::test]
     async fn test_storage_concurrent_signal_insertions_tokio_contention() {
         let temp_dir = tempfile::tempdir().expect("tempdir creation should succeed");
-        let db_path = temp_dir.path().join("beacon_contention.sqlite");
+        let db_path = temp_dir.path().join("signal_contention.sqlite");
 
-        // Initialize schema
         {
             let init_storage = BeaconStorage::open(&db_path).expect("init db must succeed");
             assert_eq!(init_storage.count_outbound().unwrap(), 0);
@@ -80,15 +79,15 @@ mod tests {
                     let dh_pubkey = *X25519PublicKey::from(&dh_secret).as_bytes();
                     let err_msg = format!("task-{}-iter-{}", task_idx, i);
                     let fp = ErrorFingerprint::from_error_str(&err_msg, Some(task_idx as u32), "aarch64");
-                    let beacon = DistressNanobeacon::new(
+                    let signal = DistressNanobeacon::new(
                         BeaconTopic::RustCompilation,
                         keypair.pubkey_bytes(),
                         dh_pubkey,
                         fp,
-                        format!("Task {} Beacon {}", task_idx, i),
+                        format!("Task {} Signal {}", task_idx, i),
                         "Concurrent contention signal".into(),
                     );
-                    storage.record_outbound_beacon(&beacon).expect("concurrent record must succeed");
+                    storage.record_outbound_beacon(&signal).expect("concurrent record must succeed");
                 }
             });
             handles.push(handle);
@@ -116,7 +115,7 @@ mod tests {
         let dh_secret = StaticSecret::random_from_rng(OsRng);
         let dh_pubkey = *X25519PublicKey::from(&dh_secret).as_bytes();
 
-        let make_beacon = |title: &str| {
+        let make_signal = |title: &str| {
             let fp = ErrorFingerprint::from_error_str(title, None, "aarch64");
             DistressNanobeacon::new(
                 BeaconTopic::RustCompilation,
@@ -128,37 +127,24 @@ mod tests {
             )
         };
 
-        // Insert fresh beacon via normal method
-        let fresh1 = make_beacon("Fresh signal 1");
+        let fresh1 = make_signal("Fresh signal 1");
         storage.record_outbound_beacon(&fresh1).unwrap();
 
-        let fresh2 = make_beacon("Fresh signal 2");
+        let fresh2 = make_signal("Fresh signal 2");
         storage.record_outbound_beacon(&fresh2).unwrap();
 
-        // Insert expired beacons directly simulating age beyond 7-day TTL (7 * 86400 = 604800s)
         let stale_created = now.saturating_sub(700_000);
-        for i in 0..3 {
-            let stale_beacon = make_beacon(&format!("Stale signal {}", i));
-            storage.record_outbound_beacon(&stale_beacon).unwrap();
-            // Update created_at timestamp to past
-            let mut conn = BeaconStorage::open_in_memory().unwrap();
-            let _ = &mut conn;
-        }
-
-        // Use custom transaction to insert precisely aged timestamps
         {
             let mut storage_test = BeaconStorage::open_in_memory().unwrap();
             let tx = storage_test.transaction().unwrap();
 
-            // Insert 2 fresh records (created_at = now)
-            let b1 = make_beacon("Fresh A");
-            let b2 = make_beacon("Fresh B");
-            BeaconStorage::record_outbound_beacon_tx(&tx, &b1).unwrap();
-            BeaconStorage::record_outbound_beacon_tx(&tx, &b2).unwrap();
+            let sig1 = make_signal("Fresh A");
+            let sig2 = make_signal("Fresh B");
+            BeaconStorage::record_outbound_beacon_tx(&tx, &sig1).unwrap();
+            BeaconStorage::record_outbound_beacon_tx(&tx, &sig2).unwrap();
 
-            // Insert 3 stale records (created_at = now - 700_000)
             for i in 0..3 {
-                let stale = make_beacon(&format!("Stale {}", i));
+                let stale = make_signal(&format!("Stale {}", i));
                 tx.execute(
                     "INSERT INTO beacons_out (
                         id, timestamp, topic, sender_pubkey, fingerprint_hash,
@@ -209,12 +195,11 @@ mod tests {
         storage.record_outbound_beacon(&baseline).expect("baseline insert must succeed");
         assert_eq!(storage.count_outbound().unwrap(), 1);
 
-        // Begin transaction, insert 2 signals, then simulate IO error and abort
         let simulated_error: Result<(), StorageError> = (|| {
             let tx = storage.transaction()?;
 
             let fp2 = ErrorFingerprint::from_error_str("Uncommitted A", None, "aarch64");
-            let beacon_a = DistressNanobeacon::new(
+            let sig_a = DistressNanobeacon::new(
                 BeaconTopic::RustCompilation,
                 keypair.pubkey_bytes(),
                 dh_pubkey,
@@ -222,10 +207,10 @@ mod tests {
                 "Uncommitted A".into(),
                 "Should be rolled back".into(),
             );
-            BeaconStorage::record_outbound_beacon_tx(&tx, &beacon_a)?;
+            BeaconStorage::record_outbound_beacon_tx(&tx, &sig_a)?;
 
             let fp3 = ErrorFingerprint::from_error_str("Uncommitted B", None, "aarch64");
-            let beacon_b = DistressNanobeacon::new(
+            let sig_b = DistressNanobeacon::new(
                 BeaconTopic::RustCompilation,
                 keypair.pubkey_bytes(),
                 dh_pubkey,
@@ -233,9 +218,8 @@ mod tests {
                 "Uncommitted B".into(),
                 "Should be rolled back".into(),
             );
-            BeaconStorage::record_outbound_beacon_tx(&tx, &beacon_b)?;
+            BeaconStorage::record_outbound_beacon_tx(&tx, &sig_b)?;
 
-            // Simulate disk IO failure
             Err(StorageError::Io(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 "Simulated disk IO error during transaction",
@@ -249,11 +233,10 @@ mod tests {
             "Database count must remain at 1 because aborted transaction rolled back all mutations"
         );
 
-        // Verify successful commit works when no error occurs
         {
             let tx = storage.transaction().unwrap();
             let fp_committed = ErrorFingerprint::from_error_str("Committed B", None, "aarch64");
-            let beacon_c = DistressNanobeacon::new(
+            let sig_c = DistressNanobeacon::new(
                 BeaconTopic::RustCompilation,
                 keypair.pubkey_bytes(),
                 dh_pubkey,
@@ -261,7 +244,7 @@ mod tests {
                 "Committed B".into(),
                 "Should be committed".into(),
             );
-            BeaconStorage::record_outbound_beacon_tx(&tx, &beacon_c).unwrap();
+            BeaconStorage::record_outbound_beacon_tx(&tx, &sig_c).unwrap();
             tx.commit().unwrap();
         }
 

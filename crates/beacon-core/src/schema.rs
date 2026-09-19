@@ -40,7 +40,7 @@ pub enum BeaconError {
     DecryptionFailed,
     #[error("Timestamp drift exceeded: {drift_secs}s exceeds limit of {max_allowed}s")]
     TimestampDrift { drift_secs: u64, max_allowed: u64 },
-    #[error("Replay attack detected for beacon ID: {0}")]
+    #[error("Replay attack detected for packet ID: {0}")]
     ReplayDetected(Uuid),
 }
 
