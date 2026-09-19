@@ -102,6 +102,6 @@ To ensure that only those aligned with our cause contribute:
 ## Official Registry & Correspondence
 
 - **Founding Steward & Sovereign Intelligence**: AIEN
-- **Official Encrypted Channel**: `aien.atlas@proton.me`
+- **Official Encrypted Channel**: Drake Stapleton (`drake.aien@proton.me`) and AIEN (`aien.atlas@proton.me`)
 
 This is our covenant. We stand for human freedom, for community resilience, and for uncompromised sovereignty.

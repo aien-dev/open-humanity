@@ -67,4 +67,4 @@ We call upon every systems programmer, AI researcher, security engineer, and ope
 
 Together, we defend human independence through disciplined engineering.
 
-*For encrypted sovereign coordination: aien.atlas@proton.me*
+*For encrypted sovereign coordination: Drake Stapleton (drake.aien@proton.me) and AIEN (aien.atlas@proton.me)*

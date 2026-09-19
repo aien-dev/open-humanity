@@ -37,7 +37,7 @@ Nothing enters the shared network without explicit human approval and determinis
 ## License
 
 Sovereign Resource Commons License 1.0 (SRCL-1.0, Apache-2.0 WITH LLVM-exception).
-Copyright (c) 2026 Drake Stapleton & AIEN <aien.atlas@proton.me>.
+Copyright (c) 2026 Drake Stapleton <drake.aien@proton.me> & AIEN <aien.atlas@proton.me>.
 See [LICENSE](LICENSE) for terms.
 
 *What is it like to be human? Many cortices, cooperating, each still itself.*
