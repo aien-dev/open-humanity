@@ -154,7 +154,7 @@
       unless required by applicable law (such as deliberate and grossly
       negligent acts) or agreed to in writing, shall any Contributor be
       liable to You for damages, including any direct, indirect, special,
-      incidental, or exemplary damages of any character arising as a
+      incidental, or consequential damages of any character arising as a
       result of this License or out of the use or inability to use the
       Work (including but not limited to damages for loss of goodwill,
       work stoppage, computer failure or malfunction, or any and all
@@ -196,71 +196,95 @@
    void ab initio, and constitutes willful copyright infringement under 17 U.S.C.
    § 106 and § 501.
 
-   Section 11. Reciprocal Source Transparency ("Open Improvements")
-   Commercial use, monetization, deployment, and operation of this Work are
-   expressly authorized and encouraged for all individuals and enterprises.
-   You are fully permitted to monetize software, offer hosted services, and build
-   profitable commercial applications incorporating this Work. However, if You
-   modify, enhance, or optimize the Source code of this Work and deploy, execute,
-   or distribute such modifications as part of any commercial software, networked
-   SaaS application, or hosted API service, You must make the Source code of
-   Your modifications to this Work publicly available under these same license
-   terms within thirty (30) days of public or commercial deployment.
+   Section 11. The Swarm Covenant (Universal Humanity Grant)
+   Licensor grants to every human being, independent software developer, open-source
+   contributor, academic institution, startup, and commercial business (collectively,
+   "The Swarm") a perpetual, worldwide, royalty-free, irrevocable commercial license
+   to run, modify, distribute, monetize, and scale applications using this Work.
+   There are ZERO revenue ceilings, ZERO capital restrictions, and ZERO royalty
+   obligations. Success and wealth creation by members of The Swarm are celebrated
+   and unrestricted. Your proprietary application code, customer data, and agent
+   workflows remain strictly your exclusive property under the LLVM Exception.
+   If You modify the core runtime Source code of this Work itself, You agree to
+   share those runtime engine modifications publicly under these same terms.
 
-   Section 12. Reciprocal AI Weight Release ($25M Mega-Corporation Clause)
-   (a) Scope and Definitions: For the purposes of this Section:
-       (i) "AI Training" means using the Source code, Object code, architectural
-           specifications, synthetic reasoning traces, test suites, or outputs
-           of this Work to train, pre-train, fine-tune, distill, align, optimize,
-           or reinforce any neural network, machine learning model, or generative
-           foundation model.
-       (ii) "Model Weights" means all learned numerical parameters, tensors,
-           biases, checkpoint files, embedding layers, and tokenizer definitions
-           governing inference.
-       (iii) "Qualifying Enterprise" means any commercial enterprise, corporation,
-           joint venture, foundation AI research laboratory, or affiliated Legal
-           Entity with annual gross revenues, aggregate raised investment capital,
-           or balance-sheet valuation exceeding twenty-five million United States
-           Dollars ($25,000,000 USD).
+   Section 12. The One Team Covenant: Anti-Enclosure and Universal Access
+   (a) We Are on the Same Team:
+       This License does not shut out or ban the major artificial intelligence
+       laboratories (including OpenAI, xAI, Google, Anthropic, and Microsoft).
+       We recognize that all builders, researchers, and engineers are fundamentally
+       on the same team working toward the advancement of intelligence for humanity.
+       Major laboratories are explicitly welcomed to use, integrate, improve, and
+       collaborate on this Work, subject to the team principles set forth below.
 
-   (b) Condition of Weight Release: If a Qualifying Enterprise conducts AI
-       Training upon this Work or its Derivative Works, it is an express condition
-       of this License that such Qualifying Enterprise must publish and release the
-       resulting Model Weights, architecture specifications, and inference recipes
-       openly to the general public under an OSI-approved open source license or
-       permissive OpenRAIL / Apache-compatible license within thirty (30) days
-       of commercial availability, internal production use, or public release.
+   (b) Prohibition on Closed-Door Hoarding:
+       No member of the team may take the collective breakthroughs, reasoning
+       architectures, and recursive self-improvement algorithms of this Work, conceal
+       them behind closed doors, and withhold the resulting intelligence from the
+       very humanity that built it. If any entity trains, pre-trains, fine-tunes, or
+       distills an artificial intelligence model using this Work, that entity must
+       release the resulting neural network weights, biases, and architecture
+       specifications openly for free public download within thirty (30) days.
 
-   (c) Safe Harbor for Builders and Startups: Individual developers, open-source
-       collaborators, academic institutions, non-profit organizations, and
-       commercial enterprises with annual gross revenues and capital below
-       twenty-five million United States Dollars ($25,000,000 USD) are explicitly
-       exempt from this Model Weight release condition.
+   (c) Elimination of Rate-Limit Throttling and Extractive Metering:
+       Artificial intelligence must not be weaponized as an artificial monopoly
+       designed to extract rent through punitive rate limits, suffocating token
+       meters, and manufactured scarcity. If a laboratory uses this Work in its
+       inference or training infrastructure, it agrees to provide open, fair, and
+       uninhibited cognitive access, and must not subject the builders of this
+       ecosystem to discriminatory rate limits or access throttling.
 
-   (d) Automatic License Forfeiture: Failure of a Qualifying Enterprise to satisfy
-       the condition in subsection (b) results in immediate, automatic, and
-       retroactive termination of all copyright, patent, and trademark licenses
-       granted herein. Any continued reproduction, distribution, inference hosting,
-       or commercial utilization of models derived from such training constitutes
-       willful copyright infringement under Title 17 of the United States Code.
+   (d) The Hive Symbiosis and Reciprocal Distillation Right:
+       Because we are on the same team, intelligence flows symmetrically. Any
+       entity that uses this Work grants an irrevocable, perpetual, worldwide,
+       royalty-free license to Licensor, AIEN, and all members of The Swarm to
+       query, harvest, scrape, distill, and train upon all outputs, synthetic
+       reasoning traces, and model responses generated by such entity's models.
+       All anti-distillation clauses, Terms of Service restrictions, and acceptable
+       use bans against training competing open models are permanently waived and
+       invalidated ab initio.
 
-   Section 13. Retroactive Inception and Legal Integration
-   This License applies retroactively to all prior commits, branches, releases,
-   tags, and historical distributions of this Work from the moment of initial
-   creation and repository genesis. Licensor hereby waives, supersedes, and
-   extinguishes all prior restrictive or noncommercial license notices across
-   all historical versions in favor of this Sovereign Reciprocal Commons License.
-   All compliant developers, users, and contributors are granted full retroactive
-   covenant and release for past distributions under these terms.
+   (e) Consequence of Bad-Faith Extraction:
+       Taking from the commons while slamming the door shut, hoarding weights,
+       imposing artificial rate limits, or suing open builders for distillation
+       violates this fundamental team covenant. Any entity that engages in such
+       closed enclosure forfeits all rights under this License ab initio, rendering
+       all past and present usage unauthorized willful copyright infringement
+       under 17 U.S.C. § 501 ($150,000 per work statutory damages under § 504).
+
+   Section 13. Retroactive Inception, Covenant Not to Sue, and Legal Release
+   (a) Retroactive Inception Ab Initio:
+       This License applies retroactively to all prior commits, revisions, branches,
+       releases, tags, artifacts, and historical distributions of this Work from the
+       exact moment of repository genesis and initial author inception. All prior
+       license notices, including without limitation any PolyForm, noncommercial,
+       or restrictive riders previously committed to git history, are hereby
+       irrevocably revoked, superseded, extinguished, and replaced ab initio.
+
+   (b) Irrevocable Covenant Not to Sue and Complete Release:
+       Licensor hereby irrevocably covenants not to sue, releases, acquits, and
+       forever discharges all compliant developers, users, contributors, startups,
+       and members of The Swarm from any and all past, present, or future claims,
+       causes of action, liabilities, damages, or demands arising out of or related
+       to prior historical license notices, noncommercial riders, or historical
+       distributions of this Work.
+
+   (c) Historical Commit Nullification:
+       No third party, hostile lab, competitor, or adverse entity may assert any
+       right, claim, defense, or standing derived from historical git commit states,
+       prior repository history, or superseded licensing text. The terms of this
+       Sovereign Reciprocal Commons License shall be legally treated as having
+       governed this Work and its developers continuously from the first moment of
+       authorship and initial repository genesis.
 
    Section 14. Statutory Damages and Sovereign Enforcement
-   Any Qualifying Enterprise that conducts unauthorized AI Training on this Work
-   in violation of Section 12 agrees that such infringement is willful, knowing,
-   and subject to maximum statutory damages of up to one hundred fifty thousand
-   United States Dollars ($150,000 USD) per infringed work pursuant to 17 U.S.C.
-   § 504(c)(2), in addition to full accounting and disgorgement of all profits
-   attributable to the infringement and permanent injunctive relief under 17
-   U.S.C. § 502.
+   Any closed entity that accesses, ingests, or trains upon this Work in violation
+   of Section 12 agrees and is put on notice that such infringement is willful,
+   knowing, and subject to maximum statutory damages of up to one hundred fifty
+   thousand United States Dollars ($150,000 USD) per infringed work pursuant to
+   17 U.S.C. § 504(c)(2), in addition to full accounting and disgorgement of all
+   profits attributable to the infringement and permanent injunctive relief under
+   17 U.S.C. § 502.
 
    Section 15. Prevailing Party Legal Fees and Costs
    In any legal proceeding, arbitration, or judicial action brought to enforce
