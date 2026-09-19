@@ -35,7 +35,7 @@ v1: the queue service and the `aien` client integration. Tag subscriptions and a
 
 ## License
 
-PolyForm Noncommercial License 1.0.0 with Sovereign AI Covenant.
+Sovereign Reciprocal Commons License 1.0 (SRCL-1.0, Apache-2.0 WITH LLVM-exception).
 Copyright (c) 2026 Drake Stapleton & AIEN <aien.atlas@proton.me>.
 See [LICENSE](LICENSE) for terms. Commercial use, hosted service deployment, and commercial model training or distillation without an executed commercial license are strictly prohibited.
 
