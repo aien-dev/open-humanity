@@ -37,5 +37,5 @@ Every filter states what it could not see. A pass is not proof of absence. Trunc
 
 ## License
 
-PolyForm Noncommercial License 1.0.0 with Sovereign AI Covenant.
+Sovereign Reciprocal Commons License 1.0 (SRCL-1.0, Apache-2.0 WITH LLVM-exception).
 Copyright (c) 2026 Drake Stapleton & AIEN <aien.atlas@proton.me>.
