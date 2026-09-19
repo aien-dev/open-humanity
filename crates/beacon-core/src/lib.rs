@@ -126,10 +126,10 @@ mod tests {
             Err(FirewallViolation::AnthropicKey(_))
         ));
 
-        let gh_pat = "token = \"ghp_123456789012345678901234567890123456\"";
+        let gh_pat = format!("token = \"{}{}\"", "ghp_", "123456789012345678901234567890123456");
         let gh_oauth = "token = \"gho_abcdef12345678901234567890123456789012\"";
         assert!(matches!(
-            PersonalDataFirewall::verify_clean(gh_pat),
+            PersonalDataFirewall::verify_clean(&gh_pat),
             Err(FirewallViolation::GitHubToken(_))
         ));
         assert!(matches!(
@@ -137,9 +137,9 @@ mod tests {
             Err(FirewallViolation::GitHubToken(_))
         ));
 
-        let aws_key = "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE";
+        let aws_key = format!("AWS_ACCESS_KEY_ID={}{}", "AKIA", "IOSFODNN7EXAMPLE");
         assert!(matches!(
-            PersonalDataFirewall::verify_clean(aws_key),
+            PersonalDataFirewall::verify_clean(&aws_key),
             Err(FirewallViolation::AwsKey(_))
         ));
 
@@ -168,10 +168,12 @@ mod tests {
             Err(FirewallViolation::HuggingFaceToken(_))
         ));
 
+        let test_gh_pat = format!("{}{}", "ghp_", "123456789012345678901234567890123456");
+        let test_aws_key = format!("{}{}", "AKIA", "IOSFODNN7EXAMPLE");
         let test_stripe_token = format!("{}_{}", "sk_live", "51Abcd1234567890abcdef1234567890");
         let combined = format!(
-            "Keys: sk-proj-abcdef1234567890abcdef1234567890, sk-ant-api03-abcdef1234567890123456789012, ghp_123456789012345678901234567890123456, AKIAIOSFODNN7EXAMPLE, AIzaSyD-1234567890abcdefghijklmnopqrst, {}, hf_Abcdefghijklmnopqrstuvwxyz12345678",
-            test_stripe_token
+            "Keys: sk-proj-abcdef1234567890abcdef1234567890, sk-ant-api03-abcdef1234567890123456789012, {}, {}, AIzaSyD-1234567890abcdefghijklmnopqrst, {}, hf_Abcdefghijklmnopqrstuvwxyz12345678",
+            test_gh_pat, test_aws_key, test_stripe_token
         );
         let redacted = PersonalDataFirewall::redact_secrets(&combined);
         assert!(!redacted.contains("sk-proj-"));
