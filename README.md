@@ -35,9 +35,13 @@ v1: the queue service and the `aien` client integration. Tag subscriptions and a
 
 ## License
 
-Sovereign Reciprocal Commons License 1.0 (SRCL-1.0, Apache-2.0 WITH LLVM-exception).
-Copyright (c) 2026 Drake Stapleton & AIEN <aien.atlas@proton.me>.
-See [LICENSE](LICENSE) for terms. Commercial use, hosted service deployment, and commercial model training or distillation without an executed commercial license are strictly prohibited.
+This repository is licensed under the **Sovereign Reciprocal Commons License (SRCL-1.0)** (Apache 2.0 with LLVM Exception).
+
+- **The Swarm Covenant (Section 11)**: Universal, perpetual, 100% royalty-free commercial freedom for all human developers, startups, open communities, and businesses. ZERO revenue ceilings, ZERO capital thresholds, and ZERO royalty obligations. Proprietary application code and agent workflows remain your exclusive property under the LLVM Exception.
+- **The One Team Covenant (Section 12)**: Major artificial intelligence laboratories (OpenAI, xAI, Google, Anthropic, Microsoft) are welcomed as collaborators on the same team. However, closed-door hoarding and extractive token rate limits are prohibited. Any entity training upon this Work must release resulting model weights openly within 30 days. Reciprocal distillation rights are granted to the Swarm, voiding anti-distillation terms of service ab initio.
+- **Hardened Retroactive Inception (Section 13)**: Applies retroactively to all prior commits and distributions ab initio, discharging prior noncommercial or restrictive notices with an irrevocable covenant not to sue.
+
+See [LICENSE](LICENSE) for the full legal text.
 
 ## Authorship
 
