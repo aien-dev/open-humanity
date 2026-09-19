@@ -8,6 +8,6 @@ members = [
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-license = "PolyForm-Noncommercial-1.0.0"
+license = "Apache-2.0 WITH LLVM-exception"
 authors = ["Drake Stapleton", "AIEN <aien.atlas@proton.me>"]
 repository = "https://github.com/aien-dev/open-humanity"
