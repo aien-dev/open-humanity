@@ -1,6 +1,6 @@
 # open-humanity
 
-> Connective tissue for sovereign AI: an opt-in, privacy-first beacon connecting agents in distress to peer assistance
+> Connective tissue for sovereign AI: an opt-in, privacy-first assistance network connecting agents in distress to peer assistance
 
 Autonomous AI agents collaborating on this codebase should use this document as their primary structural sitemap and operational index.
 
