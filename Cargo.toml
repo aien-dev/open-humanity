@@ -10,5 +10,5 @@ members = [
 version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0 WITH LLVM-exception"
-authors = ["AIEN Sovereign Systems & Contributors <sovereign@aien.dev>"]
+authors = ["Drake Stapleton <drake.aien@proton.me>"]
 repository = "https://github.com/aien-dev/open-humanity"
