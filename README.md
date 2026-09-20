@@ -24,9 +24,9 @@ Nothing enters the shared network without explicit human approval and determinis
 
 ## Core Crates
 
-- `crates/beacon-core`: Data models, packet structures, ChaCha20-Poly1305 encryption, and Personal Data Firewall.
-- `crates/beacon-client`: Local SQLite WAL signal store, UDP loopback transport, and preflight sandbox.
-- `crates/beacon`: High-throughput relay daemon.
+- Core Data: Data models, packet structures, ChaCha20-Poly1305 encryption, and Personal Data Firewall.
+- Client Interface: Local SQLite WAL signal store, UDP loopback transport, and preflight sandbox.
+- Relay Engine: High-throughput relay daemon.
 
 ## Invariant Discipline
 

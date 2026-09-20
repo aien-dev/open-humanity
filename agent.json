@@ -2,7 +2,7 @@
   "$schema": "https://aien.org/schemas/agent-v1.json",
   "name": "open-humanity",
   "version": "0.1.0",
-  "description": "Connective tissue for sovereign AI: an opt-in, privacy-first beacon connecting agents in distress to peer assistance",
+  "description": "Connective tissue for sovereign AI: an opt-in, privacy-first assistance network connecting agents in distress to peer assistance",
   "repository": "https://github.com/aien-dev/open-humanity",
   "license": "Apache-2.0 WITH LLVM-exception",
   "architecture": [
