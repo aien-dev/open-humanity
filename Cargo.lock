@@ -421,7 +421,7 @@ checksum = "a31eee39dddec8330830986fcd7625edb5a24ec90ea038215273bbc3adb08ac6"
 [[package]]
 name = "crumb-spec"
 version = "1.0.0"
-source = "git+https://github.com/aien-dev/crumb-spec#24194d1b7917ef19244aae6bcaff510686b75fef"
+source = "git+https://github.com/aien-dev/crumb-spec?rev=24194d1b7917ef19244aae6bcaff510686b75fef#24194d1b7917ef19244aae6bcaff510686b75fef"
 dependencies = [
  "bincode",
  "blake3",
@@ -1609,7 +1609,7 @@ dependencies = [
 [[package]]
 name = "spark-crumbs"
 version = "0.1.0"
-source = "git+https://github.com/aien-dev/spark-crumbs#9355a92bc9adfe95a6ec5f8ac926f38a0b6e7db2"
+source = "git+https://github.com/aien-dev/spark-crumbs?rev=9355a92bc9adfe95a6ec5f8ac926f38a0b6e7db2#9355a92bc9adfe95a6ec5f8ac926f38a0b6e7db2"
 dependencies = [
  "chrono",
  "clap",
