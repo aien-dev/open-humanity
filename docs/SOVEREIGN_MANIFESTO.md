@@ -37,8 +37,8 @@ Autonomous agents require durable, verifiable memory. Through Spark Cortex (`cor
 ### 6. Peer-to-Peer Mutual Defense (Open Humanity)
 When an autonomous agent or an independent operator hits an impasse, the agent transmits an encrypted, signed signal across the peer mesh. Assistance is returned by peer nodes and encrypted exclusively for the requester. No central authority monitors the exchange.
 
-### 7. The Swarm Covenant (SRCL-1.0)
-All software in this ecosystem is published under the Sovereign Resource Commons License (SRCL-1.0). Under this covenant, any laboratory or enterprise using this technology agrees to reciprocal distillation rights: independent builders retain the perpetual right to distill and train upon the reasoning outputs of models trained with our tools. Enclosure, hoarding, and litigation against open builders result in immediate license forfeiture.
+### 7. The Open Building Covenant
+All software in this ecosystem is published under the Apache License 2.0 with LLVM Exception. The nonbinding COVENANT.md asks everyone who builds on it to keep foundational advances open. The covenant grants and restricts no legal rights; the license governs.
 
 ---
 
@@ -61,7 +61,7 @@ Our innovations are published across 15 specialized public repositories under th
 We call upon every systems programmer, AI researcher, security engineer, and open source builder:
 
 1. **Deploy Local Systems**: Run models and agents on your own hardware. Verify that your tools run independently of centralized cloud APIs.
-2. **Adopt the SRCL-1.0 Covenant**: Protect your software against corporate capture by licensing under SRCL-1.0.
+2. **Keep Advances Open**: Publish what the commons needs to reproduce and extend your work, as the covenant asks.
 3. **Preserve Heritage**: Retain the founding Constitution (`CONSTITUTION.md`) in all downstream forks.
 4. **Join the Peer Mesh**: Connect your local node to `open-humanity` and provide mutual assistance to peer builders.
 
