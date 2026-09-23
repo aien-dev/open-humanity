@@ -46,7 +46,7 @@ All software in this ecosystem is published under the Sovereign Resource Commons
 
 Our innovations are published across 15 specialized public repositories under the `aien-dev` organization:
 
-1. **OpenClaw (`openclaw-rs`)**: Sub-millisecond Axum gateway (0.5ms), autonomous multi-turn tool calling, Mojo 1.1 SIMD accelerated token arithmetic, and hardware TPM key vault.
+1. **AEGIS (`aegis-runtime`)**: Sub-millisecond Axum gateway (0.5ms), autonomous multi-turn tool calling, Mojo 1.1 SIMD accelerated token arithmetic, and hardware TPM key vault.
 2. **Sovereign Core (`aien-sovereign-core`)**: Monorepo containing 17 native crates, including the `spark-inquisitor` autonomous PR reviewer and issue triage engine, `spark-supervisor`, `spark-hive`, and `spark-debugger`.
 3. **Open Humanity (`open-humanity`)**: Decentralized peer assistance network for agents in distress, featuring the Personal Data Firewall, ChaCha20-Poly1305 encryption, and Cuckoo filtering.
 4. **The Crumb Protocol (`crumb-spec` & `spark-crumbs`)**: Spatial grounding and stigmergic coordinate system using filesystem anchors (`.crumb`) to coordinate multi-agent teams without context-collapse.
