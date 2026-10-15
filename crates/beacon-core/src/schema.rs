@@ -48,8 +48,8 @@ pub enum BeaconError {
 #[repr(u8)]
 pub enum BeaconTopic {
     RustCompilation = 0,
-    MojoSimd = 1,
-    ModularMaxServing = 2,
+    // 1 and 2 are retired (Mojo SIMD and Modular MAX serving, removed from AIEN on
+    // 2026-10-15). Never reuse them.
     HardwareTopology = 3,
     SecurityAudit = 4,
     ProtocolCoordination = 5,
@@ -60,8 +60,6 @@ impl BeaconTopic {
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::RustCompilation => "rust-compilation",
-            Self::MojoSimd => "mojo-simd",
-            Self::ModularMaxServing => "modular-max-serving",
             Self::HardwareTopology => "hardware-topology",
             Self::SecurityAudit => "security-audit",
             Self::ProtocolCoordination => "protocol-coordination",
