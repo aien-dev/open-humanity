@@ -302,4 +302,24 @@ mod tests {
         assert_eq!(received_beacon.topic, BeaconTopic::ProtocolCoordination);
         assert_eq!(src, node_a.local_addr().unwrap());
     }
+
+    #[test]
+    fn test_storage_refuses_retired_topic_ids() {
+        let storage = BeaconStorage::open_in_memory().expect("in-memory db must open");
+        for (i, retired) in [BeaconTopic::Retired1, BeaconTopic::Retired2]
+            .into_iter()
+            .enumerate()
+        {
+            let hash = [i as u8 + 1; 32];
+            // Stands in for a row written before topics 1 and 2 were retired.
+            storage
+                .insert_solved_entry(&hash, retired, "old patch")
+                .expect("raw insert should succeed");
+            assert!(
+                storage.get_solved_entry(&hash).is_err(),
+                "topic id {} must be refused",
+                retired as u8
+            );
+        }
+    }
 }

@@ -210,8 +210,13 @@ impl BeaconStorage {
             let topic_raw: u8 = row.get(1)?;
             let topic = match topic_raw {
                 0 => BeaconTopic::RustCompilation,
-                1 => BeaconTopic::MojoSimd,
-                2 => BeaconTopic::ModularMaxServing,
+                // 1 and 2 are retired topics (Mojo SIMD, Modular MAX serving); refuse them.
+                1 | 2 => {
+                    return Err(rusqlite::Error::IntegralValueOutOfRange(
+                        1,
+                        i64::from(topic_raw),
+                    ));
+                }
                 3 => BeaconTopic::HardwareTopology,
                 4 => BeaconTopic::SecurityAudit,
                 5 => BeaconTopic::ProtocolCoordination,

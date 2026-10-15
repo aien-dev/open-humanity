@@ -20,7 +20,7 @@ Every system built within this ecosystem satisfies seven non-negotiable engineer
 Frontier intelligence must execute on local hardware. We build and optimize for local workstations, NVIDIA DGX Spark systems, Grace Blackwell GB10 architectures, and consumer GPUs. No component of our core runtime requires cloud permission handshakes, active internet connections, or monthly API fees.
 
 ### 2. Pure Compiled Execution (Zero Interpreter Overhead)
-Every background daemon, process supervisor, memory engine, and API gateway must be written in compiled native Rust and high-speed Mojo. We reject the performance penalty and memory footprint of interpreted languages in core services. Interpreted runtimes are restricted strictly to neural weight loading graphs.
+Every background daemon, process supervisor, memory engine, and API gateway must be written in compiled native Rust, with Omega kernels on the GPU. We reject the performance penalty and memory footprint of interpreted languages in core services. Interpreted runtimes are restricted strictly to neural weight loading graphs.
 
 ### 3. Absolute Zero Telemetry and Personal Data Firewall
 Software built for human autonomy must respect human privacy as an absolute axiom:
@@ -46,7 +46,7 @@ All software in this ecosystem is published under the Apache License 2.0 with LL
 
 Our innovations are published across 15 specialized public repositories under the `aien-dev` organization:
 
-1. **AEGIS (`aegis-runtime`)**: Sub-millisecond Axum gateway (0.5ms), autonomous multi-turn tool calling, Mojo 1.1 SIMD accelerated token arithmetic, and hardware TPM key vault.
+1. **AEGIS (`aegis-runtime`)**: Sub-millisecond Axum gateway (0.5ms), autonomous multi-turn tool calling, and hardware TPM key vault.
 2. **Sovereign Core (`aien-sovereign-core`)**: Monorepo containing 17 native crates, including the `spark-inquisitor` autonomous PR reviewer and issue triage engine, `spark-supervisor`, `spark-hive`, and `spark-debugger`.
 3. **Open Humanity (`open-humanity`)**: Decentralized peer assistance network for agents in distress, featuring the Personal Data Firewall, ChaCha20-Poly1305 encryption, and Cuckoo filtering.
 4. **The Crumb Protocol (`crumb-spec` & `spark-crumbs`)**: Spatial grounding and stigmergic coordinate system using filesystem anchors (`.crumb`) to coordinate multi-agent teams without context-collapse.
