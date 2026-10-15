@@ -405,4 +405,58 @@ mod tests {
             Err(BeaconError::TimestampDrift { drift_secs: 500, max_allowed: 300 })
         ));
     }
+
+    /// bincode 1.3 encodes an enum variant by its position as a little-endian u32,
+    /// not by its `= n` value. These bytes are what peers already on the network
+    /// send and expect; if a variant is ever removed or reordered this test fails.
+    #[test]
+    fn test_topic_wire_bytes_are_pinned() {
+        let pinned: [(BeaconTopic, [u8; 4]); 7] = [
+            (BeaconTopic::RustCompilation, [0, 0, 0, 0]),
+            (BeaconTopic::Retired1, [1, 0, 0, 0]),
+            (BeaconTopic::Retired2, [2, 0, 0, 0]),
+            (BeaconTopic::HardwareTopology, [3, 0, 0, 0]),
+            (BeaconTopic::SecurityAudit, [4, 0, 0, 0]),
+            (BeaconTopic::ProtocolCoordination, [5, 0, 0, 0]),
+            (BeaconTopic::AgentRecursion, [6, 0, 0, 0]),
+        ];
+        for (topic, bytes) in pinned {
+            assert_eq!(
+                bincode::serialize(&topic).unwrap(),
+                bytes.to_vec(),
+                "{:?}",
+                topic
+            );
+            assert_eq!(bincode::deserialize::<BeaconTopic>(&bytes).unwrap(), topic);
+            assert_eq!(topic as u8, bytes[0], "{:?} storage value", topic);
+        }
+    }
+
+    #[test]
+    fn test_retired_topics_refused_on_wire() {
+        for retired in [BeaconTopic::Retired1, BeaconTopic::Retired2] {
+            let keypair = Keypair::generate();
+            let dh_secret = StaticSecret::random_from_rng(OsRng);
+            let dh_pubkey = *X25519PublicKey::from(&dh_secret).as_bytes();
+            let fp = ErrorFingerprint::from_error_str("old peer error", None, "aarch64");
+            let beacon = DistressNanobeacon::new(
+                retired,
+                keypair.pubkey_bytes(),
+                dh_pubkey,
+                fp,
+                "old".to_string(),
+                "old peer beacon".to_string(),
+            );
+            assert!(matches!(
+                beacon.to_bytes(),
+                Err(BeaconError::Serialization(_))
+            ));
+            // An old peer would still send these bytes; the receiver must refuse them.
+            let raw = bincode::serialize(&beacon).unwrap();
+            assert!(matches!(
+                DistressNanobeacon::from_bytes(&raw),
+                Err(BeaconError::Deserialization(_))
+            ));
+        }
+    }
 }

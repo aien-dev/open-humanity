@@ -48,8 +48,13 @@ pub enum BeaconError {
 #[repr(u8)]
 pub enum BeaconTopic {
     RustCompilation = 0,
-    // 1 and 2 are retired (Mojo SIMD and Modular MAX serving, removed from AIEN on
-    // 2026-10-15). Never reuse them.
+    /// Retired placeholder (was Mojo SIMD, removed from AIEN on 2026-10-15).
+    /// Kept so bincode, which encodes variants by position, gives every later
+    /// topic the same wire bytes as before. Refused by `from_bytes`; never reuse.
+    Retired1 = 1,
+    /// Retired placeholder (was Modular MAX serving, removed 2026-10-15).
+    /// Same reason as `Retired1`. Refused by `from_bytes`; never reuse.
+    Retired2 = 2,
     HardwareTopology = 3,
     SecurityAudit = 4,
     ProtocolCoordination = 5,
@@ -57,9 +62,16 @@ pub enum BeaconTopic {
 }
 
 impl BeaconTopic {
+    /// True for the placeholder topics 1 and 2, which are refused on receive.
+    pub fn is_retired(&self) -> bool {
+        matches!(self, Self::Retired1 | Self::Retired2)
+    }
+
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::RustCompilation => "rust-compilation",
+            Self::Retired1 => "retired-1",
+            Self::Retired2 => "retired-2",
             Self::HardwareTopology => "hardware-topology",
             Self::SecurityAudit => "security-audit",
             Self::ProtocolCoordination => "protocol-coordination",
@@ -136,6 +148,12 @@ impl DistressNanobeacon {
     }
 
     pub fn to_bytes(&self) -> Result<Vec<u8>, BeaconError> {
+        if self.topic.is_retired() {
+            return Err(BeaconError::Serialization(format!(
+                "retired beacon topic {}",
+                self.topic as u8
+            )));
+        }
         let bytes = bincode::serialize(self)
             .map_err(|e| BeaconError::Serialization(e.to_string()))?;
         if bytes.len() > MAX_DATAGRAM_SIZE {
@@ -160,6 +178,12 @@ impl DistressNanobeacon {
 
         let beacon: Self = bincode::deserialize(bytes)
             .map_err(|e| BeaconError::Deserialization(e.to_string()))?;
+        if beacon.topic.is_retired() {
+            return Err(BeaconError::Deserialization(format!(
+                "retired beacon topic {}",
+                beacon.topic as u8
+            )));
+        }
         Ok(beacon)
     }
 }
