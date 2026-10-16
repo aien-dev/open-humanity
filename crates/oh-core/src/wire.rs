@@ -73,6 +73,22 @@ pub struct Receipt {
     pub sig: Vec<u8>,
 }
 
+/// The starting model, sent just before a work unit. It is not signed on its
+/// own: the signed work unit pins it through `base_digest`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BaseModel {
+    /// `TinyByteModel` width, so the volunteer can build the right shape.
+    pub dim: u32,
+    pub params: Vec<f32>,
+}
+
+impl BaseModel {
+    /// `params_digest` of the parameters; compare with `WorkUnit::base_digest`.
+    pub fn digest(&self) -> [u8; 32] {
+        params_digest(&self.params)
+    }
+}
+
 /// BLAKE3 of the parameters as little-endian f32 bytes.
 pub fn params_digest(params: &[f32]) -> [u8; 32] {
     let mut hasher = blake3::Hasher::new();
@@ -441,5 +457,18 @@ mod tests {
         write_frame(&mut buf, &[1, 2, 3]).unwrap();
         let result: Result<WorkUnit, _> = recv(&mut Cursor::new(buf));
         assert!(matches!(result, Err(WireError::Decode(_))));
+    }
+
+    #[test]
+    fn test_base_model_digest_matches_its_params() {
+        let base = BaseModel {
+            dim: 2,
+            params: vec![0.5, -1.0, 2.0],
+        };
+        assert_eq!(base.digest(), params_digest(&[0.5, -1.0, 2.0]));
+        let mut buf = Vec::new();
+        send(&mut buf, &base).unwrap();
+        let back: BaseModel = recv(&mut Cursor::new(buf)).unwrap();
+        assert_eq!(back, base);
     }
 }
