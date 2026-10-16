@@ -1044,6 +1044,8 @@ dependencies = [
  "blake3",
  "oh-core",
  "oh-volunteer",
+ "rand 0.8.8",
+ "zeroize",
 ]
 
 [[package]]

@@ -16,28 +16,74 @@
 //! secret and a hash of both hellos.
 //!
 //! After the handshake every byte goes in sealed records:
-//! `len[4, big endian] || ChaCha20-Poly1305(plaintext)`, with the length
-//! header as associated data. The nonce is the record number in this
+//! `len[4, big endian] || ChaCha20-Poly1305(padded)`, with the length
+//! header as associated data. `padded` is `data_len[4, big endian] || data ||
+//! zero bytes`, grown to a size bucket (the next power of two, at least
+//! 1 KiB, at most 64 MiB), so the record length on the wire only tells an
+//! observer which bucket the data fell in. The receiver refuses a record
+//! whose length field, bucket size or padding bytes are not exactly what an
+//! honest sender produces. The nonce is the record number in this
 //! direction (4 zero bytes then the 64-bit little-endian counter); it is
 //! never sent, never reused, and the receiver only accepts the next number,
 //! so a replayed, dropped or reordered record fails to open and closes the
 //! stream. All primitives come from beacon-core (x25519-dalek,
 //! chacha20poly1305) and blake3; nothing here is new cryptography.
 
-use crate::wire::MAX_FRAME_BYTES;
 use beacon_core::{verify_signature, EphemeralKeyAgreement, Keypair, SessionCipher};
 use std::io::{self, Read, Write};
 
 /// Protocol tag at the start of each hello.
-pub const TRANSPORT_VERSION: &[u8; 8] = b"OHSEC001";
+pub const TRANSPORT_VERSION: &[u8; 8] = b"OHSEC002";
 const VOLUNTEER_CONTEXT: &[u8] = b"open-humanity transport v1: volunteer hello";
 const COORDINATOR_CONTEXT: &[u8] = b"open-humanity transport v1: coordinator hello";
 const KEY_V2C: &str = "open-humanity transport v1 2026-10-16 volunteer to coordinator";
 const KEY_C2V: &str = "open-humanity transport v1 2026-10-16 coordinator to volunteer";
 const HELLO_LEN: usize = 8 + 32 + 32 + 64;
 const TAG_LEN: usize = 16;
-/// Largest plaintext in one record: one full wire frame with its header.
-pub const MAX_RECORD_PLAINTEXT: usize = MAX_FRAME_BYTES as usize + 4;
+/// Smallest padded record plaintext (1 KiB).
+pub const MIN_PADDED_RECORD: usize = 1024;
+/// Largest padded record plaintext (64 MiB).
+pub const MAX_PADDED_RECORD: usize = 1 << 26;
+/// Bytes of the inner length field at the start of each padded record.
+const PAD_HEADER: usize = 4;
+/// Most data one record carries; longer flushes are split.
+pub const MAX_RECORD_DATA: usize = MAX_PADDED_RECORD - PAD_HEADER;
+
+/// Size of the padded plaintext that carries `data_len` bytes: the next
+/// power of two that fits the data and its length field, at least
+/// `MIN_PADDED_RECORD`. `data_len` must be at most `MAX_RECORD_DATA`.
+pub fn padded_size(data_len: usize) -> usize {
+    (data_len + PAD_HEADER)
+        .next_power_of_two()
+        .max(MIN_PADDED_RECORD)
+}
+
+fn pad(data: &[u8]) -> Vec<u8> {
+    debug_assert!(data.len() <= MAX_RECORD_DATA);
+    let mut out = vec![0u8; padded_size(data.len())];
+    out[..PAD_HEADER].copy_from_slice(&(data.len() as u32).to_be_bytes());
+    out[PAD_HEADER..PAD_HEADER + data.len()].copy_from_slice(data);
+    out
+}
+
+/// Strips the padding from an opened record. `None` unless the length
+/// field, the bucket size and the all-zero padding are exactly what `pad`
+/// produces.
+fn unpad(mut padded: Vec<u8>) -> Option<Vec<u8>> {
+    if padded.len() < PAD_HEADER {
+        return None;
+    }
+    let len = u32::from_be_bytes(padded[..PAD_HEADER].try_into().ok()?) as usize;
+    if len > padded.len() - PAD_HEADER || padded.len() != padded_size(len) {
+        return None;
+    }
+    if padded[PAD_HEADER + len..].iter().any(|&b| b != 0) {
+        return None;
+    }
+    padded.truncate(PAD_HEADER + len);
+    padded.drain(..PAD_HEADER);
+    Some(padded)
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum TransportError {
@@ -247,18 +293,26 @@ impl<S: Read> EncryptedStream<S> {
             }
         }
         let len = u32::from_be_bytes(header) as usize;
-        if !(TAG_LEN..=MAX_RECORD_PLAINTEXT + TAG_LEN).contains(&len) {
+        if !(MIN_PADDED_RECORD + TAG_LEN..=MAX_PADDED_RECORD + TAG_LEN).contains(&len) {
             self.broken = true;
             return Err(invalid("encrypted record has an impossible length"));
         }
         let mut sealed = vec![0u8; len];
         self.inner.read_exact(&mut sealed)?;
         match self.recv.open(&nonce(self.recv_counter), &header, &sealed) {
-            Ok(plain) => {
+            Ok(padded) => {
                 self.recv_counter += 1;
-                self.read_buf = plain;
-                self.read_pos = 0;
-                Ok(true)
+                match unpad(padded) {
+                    Some(plain) => {
+                        self.read_buf = plain;
+                        self.read_pos = 0;
+                        Ok(true)
+                    }
+                    None => {
+                        self.broken = true;
+                        Err(invalid("encrypted record has malformed padding"))
+                    }
+                }
             }
             Err(_) => {
                 self.broken = true;
@@ -290,29 +344,36 @@ impl<S: Read> Read for EncryptedStream<S> {
     }
 }
 
+impl<S: Write> EncryptedStream<S> {
+    /// Seals one already padded plaintext as the next record and writes it.
+    fn seal_record(&mut self, padded: &[u8]) -> io::Result<()> {
+        if self.send_counter == u64::MAX {
+            return Err(io::Error::other("record counter exhausted"));
+        }
+        let header = ((padded.len() + TAG_LEN) as u32).to_be_bytes();
+        let sealed = self
+            .send
+            .seal(&nonce(self.send_counter), &header, padded)
+            .map_err(|_| io::Error::other("encryption failed"))?;
+        self.send_counter += 1;
+        self.inner.write_all(&header)?;
+        self.inner.write_all(&sealed)
+    }
+}
+
 impl<S: Write> Write for EncryptedStream<S> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.write_buf.extend_from_slice(buf);
         Ok(buf.len())
     }
 
-    /// Seals everything written since the last flush, in records of at most
-    /// `MAX_RECORD_PLAINTEXT` bytes, and sends them.
+    /// Seals everything written since the last flush and sends it, padded
+    /// to size buckets, in records of at most `MAX_RECORD_DATA` bytes of
+    /// data each.
     fn flush(&mut self) -> io::Result<()> {
         let pending = std::mem::take(&mut self.write_buf);
-        for chunk in pending.chunks(MAX_RECORD_PLAINTEXT) {
-            if self.send_counter == u64::MAX {
-                return Err(io::Error::other("record counter exhausted"));
-            }
-            let len = (chunk.len() + TAG_LEN) as u32;
-            let header = len.to_be_bytes();
-            let sealed = self
-                .send
-                .seal(&nonce(self.send_counter), &header, chunk)
-                .map_err(|_| io::Error::other("encryption failed"))?;
-            self.send_counter += 1;
-            self.inner.write_all(&header)?;
-            self.inner.write_all(&sealed)?;
+        for chunk in pending.chunks(MAX_RECORD_DATA) {
+            self.seal_record(&pad(chunk))?;
         }
         self.inner.flush()
     }
@@ -461,6 +522,108 @@ mod tests {
         v.get_mut().write_all(&rec).unwrap();
         let mut buf = [0u8; 7];
         assert!(c.read_exact(&mut buf).is_err());
+    }
+
+    #[test]
+    fn test_padded_size_buckets() {
+        assert_eq!(padded_size(0), 1024);
+        assert_eq!(padded_size(1020), 1024);
+        assert_eq!(padded_size(1021), 2048);
+        assert_eq!(padded_size(5000), 8192);
+        assert_eq!(padded_size(MAX_RECORD_DATA), MAX_PADDED_RECORD);
+        assert!(MAX_PADDED_RECORD <= crate::wire::MAX_FRAME_BYTES as usize);
+    }
+
+    #[test]
+    fn test_messages_in_one_bucket_have_equal_ciphertext_length() {
+        let (mut v, mut c) = pinned();
+        // A short receipt and a 900-byte update both land in the 1 KiB
+        // bucket; 3000 and 4000 bytes both land in 4 KiB.
+        let mut lens = Vec::new();
+        for size in [7usize, 900, 3000, 4000] {
+            send_frame(&mut v, &vec![0xab; size]);
+            lens.push(raw_record(c.get_mut()).len());
+        }
+        assert_eq!(lens[0], lens[1]);
+        assert_eq!(lens[0], 4 + 1024 + TAG_LEN);
+        assert_eq!(lens[2], lens[3]);
+        assert_eq!(lens[2], 4 + 4096 + TAG_LEN);
+    }
+
+    #[test]
+    fn test_padded_round_trip_is_exact() {
+        let (mut v, mut c) = pinned();
+        let sizes = [1usize, 1019, 1020, 1021, 4092, 4093, 70_000];
+        let handle = thread::spawn(move || {
+            for (i, size) in sizes.iter().enumerate() {
+                let msg: Vec<u8> = (0..*size).map(|j| (i * 31 + j) as u8).collect();
+                send_frame(&mut v, &msg);
+            }
+            v
+        });
+        for (i, size) in sizes.iter().enumerate() {
+            let want: Vec<u8> = (0..*size).map(|j| (i * 31 + j) as u8).collect();
+            let mut got = vec![0u8; *size];
+            c.read_exact(&mut got).unwrap();
+            assert_eq!(got, want);
+        }
+        // Nothing but the data comes out: once the sender is gone the next
+        // read sees a clean end of stream, no padding bytes.
+        drop(handle.join().unwrap());
+        let mut rest = Vec::new();
+        assert_eq!(c.read_to_end(&mut rest).unwrap(), 0);
+    }
+
+    /// Seals `padded` as-is (no padding added) as the volunteer's next
+    /// record, so a test can send what an honest sender never would.
+    fn send_raw_padded(v: &mut EncryptedStream<TcpStream>, padded: &[u8]) {
+        v.seal_record(padded).unwrap();
+        v.get_mut().flush().unwrap();
+    }
+
+    fn assert_padding_rejected(padded: Vec<u8>) {
+        let (mut v, mut c) = pinned();
+        send_raw_padded(&mut v, &padded);
+        let mut buf = [0u8; 1];
+        let err = c.read(&mut buf).unwrap_err();
+        assert_eq!(err.kind(), io::ErrorKind::InvalidData);
+        assert!(err.to_string().contains("padding"), "{err}");
+        assert!(c.read(&mut buf).is_err(), "stream stays closed");
+    }
+
+    #[test]
+    fn test_malformed_padding_is_rejected() {
+        // Control: the honest encoding opens.
+        let (mut v, mut c) = pinned();
+        send_raw_padded(&mut v, &pad(b"ok"));
+        let mut buf = [0u8; 2];
+        c.read_exact(&mut buf).unwrap();
+        assert_eq!(&buf, b"ok");
+
+        // Length field claims more data than the record holds.
+        let mut p = pad(b"hello");
+        p[..4].copy_from_slice(&2000u32.to_be_bytes());
+        assert_padding_rejected(p);
+
+        // A padding byte is not zero.
+        let mut p = pad(b"hello");
+        p[100] = 1;
+        assert_padding_rejected(p);
+
+        // Valid layout, but a bigger bucket than the data needs.
+        let mut p = vec![0u8; 2048];
+        p[..4].copy_from_slice(&5u32.to_be_bytes());
+        p[4..9].copy_from_slice(b"hello");
+        assert_padding_rejected(p);
+    }
+
+    #[test]
+    fn test_record_below_the_smallest_bucket_is_rejected() {
+        let (mut v, mut c) = pinned();
+        send_raw_padded(&mut v, b"\0\0\0\x02hi");
+        let mut buf = [0u8; 2];
+        let err = c.read_exact(&mut buf).unwrap_err();
+        assert_eq!(err.kind(), io::ErrorKind::InvalidData);
     }
 
     #[test]
