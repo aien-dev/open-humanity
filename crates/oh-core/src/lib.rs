@@ -6,5 +6,7 @@
 //! `docs/design/volunteer-compute-v0.md`.
 
 pub mod learner;
+pub mod update;
 
 pub use learner::*;
+pub use update::*;
