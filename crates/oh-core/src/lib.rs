@@ -7,6 +7,8 @@
 
 pub mod learner;
 pub mod update;
+pub mod wire;
 
 pub use learner::*;
 pub use update::*;
+pub use wire::*;
