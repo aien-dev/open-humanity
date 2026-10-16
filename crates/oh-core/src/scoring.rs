@@ -67,6 +67,15 @@ enum Entry {
         turings: f64,
         receipt_digest: String,
     },
+    /// An update that was scored or checked and turned down. It earns
+    /// nothing; the line is kept so every receipt sent has a ledger record.
+    Rejected {
+        node_pubkey: String,
+        /// `None` when the score was not a finite number.
+        turings: Option<f64>,
+        reason: String,
+        receipt_digest: String,
+    },
 }
 
 /// Append-only JSON Lines ledger. Opening an existing file replays it, so
@@ -132,6 +141,9 @@ impl Ledger {
                         .ok_or_else(|| corrupt("node_pubkey".into()))?;
                     *ledger.totals.entry(node).or_insert(0.0) += turings;
                 }
+                Entry::Rejected { node_pubkey, .. } => {
+                    from_hex::<32>(&node_pubkey).ok_or_else(|| corrupt("node_pubkey".into()))?;
+                }
             }
         }
         Ok(ledger)
@@ -177,6 +189,23 @@ impl Ledger {
         })?;
         *self.totals.entry(*node_pubkey).or_insert(0.0) += turings;
         Ok(())
+    }
+
+    /// Records a rejected update for the receipt `receipt_digest`. Nothing
+    /// is credited; totals do not change.
+    pub fn record_rejection(
+        &mut self,
+        node_pubkey: &[u8; 32],
+        turings: f64,
+        reason: &str,
+        receipt_digest: &[u8; 32],
+    ) -> Result<(), LedgerError> {
+        self.append(&Entry::Rejected {
+            node_pubkey: to_hex(node_pubkey),
+            turings: turings.is_finite().then_some(turings),
+            reason: reason.to_string(),
+            receipt_digest: to_hex(receipt_digest),
+        })
     }
 
     /// Total Turings credited to `node_pubkey`; zero if never credited.
@@ -360,6 +389,29 @@ mod tests {
 
         let lines = std::fs::read_to_string(&path).unwrap();
         assert_eq!(lines.lines().count(), 4, "append-only: one line per credit");
+        std::fs::remove_file(&path).unwrap();
+    }
+
+    #[test]
+    fn test_rejections_are_recorded_but_never_credited() {
+        let path = temp_path("rejected");
+        let node = [0xCC; 32];
+        {
+            let mut ledger = Ledger::open(&path).unwrap();
+            ledger.credit(&node, 2.0, &[1; 32]).unwrap();
+            ledger
+                .record_rejection(&node, -3.5, "did not lower held-out bits", &[2; 32])
+                .unwrap();
+            ledger
+                .record_rejection(&node, f64::NAN, "score was not a number", &[3; 32])
+                .unwrap();
+            assert_eq!(ledger.total(&node), 2.0);
+        }
+        let text = std::fs::read_to_string(&path).unwrap();
+        assert_eq!(text.matches("\"kind\":\"rejected\"").count(), 2);
+        assert!(text.contains("\"turings\":null"));
+        let reopened = Ledger::open(&path).unwrap();
+        assert_eq!(reopened.total(&node), 2.0);
         std::fs::remove_file(&path).unwrap();
     }
 

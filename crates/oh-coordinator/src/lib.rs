@@ -205,35 +205,46 @@ impl Coordinator {
         }
     }
 
-    /// Checks, scores and records one update. Ledger write failures are
-    /// returned as errors; everything else is a verdict.
+    /// Checks, scores and records one update. Every update that gets a
+    /// receipt also gets a ledger line: a credit if accepted, a rejection
+    /// otherwise. Ledger write failures are returned as errors; everything
+    /// else is a verdict.
     pub fn judge(&mut self, unit: &WorkUnit, update: &Update) -> Result<Verdict, LedgerError> {
         if let Err(e) = update.verify_for(unit) {
             return Ok(Verdict::Dropped(e.to_string()));
         }
-        let reject = |coordinator: &Self, turings: f64, reason: String| Verdict::Rejected {
-            receipt: Receipt::new_signed(&coordinator.keypair, update, turings, false),
-            reason,
-        };
         if let Err(e) = update.delta.validate(TinyByteModel::num_params(self.dim)) {
-            return Ok(reject(self, 0.0, e.to_string()));
+            return self.reject(update, 0.0, e.to_string());
         }
         if !self
             .ledger
             .mark_seen(&update.run_id, &update.delta_digest)?
         {
-            return Ok(reject(self, 0.0, "replay of an earlier update".into()));
+            return self.reject(update, 0.0, "replay of an earlier update".into());
         }
         let delta = update.delta.decompress();
         let scorer = self.scorer();
         let turings = scorer.score(&mut self.model, &delta);
         if !scorer.accept(turings) {
-            return Ok(reject(self, turings, "did not lower held-out bits".into()));
+            return self.reject(update, turings, "did not lower held-out bits".into());
         }
         let receipt = Receipt::new_signed(&self.keypair, update, turings, true);
         self.ledger
             .credit(&update.node_pubkey, turings, &receipt.digest())?;
         Ok(Verdict::Accepted { receipt, delta })
+    }
+
+    /// Signs a rejection receipt and writes a rejected line to the ledger.
+    fn reject(
+        &mut self,
+        update: &Update,
+        turings: f64,
+        reason: String,
+    ) -> Result<Verdict, LedgerError> {
+        let receipt = Receipt::new_signed(&self.keypair, update, turings, false);
+        self.ledger
+            .record_rejection(&update.node_pubkey, turings, &reason, &receipt.digest())?;
+        Ok(Verdict::Rejected { receipt, reason })
     }
 
     /// Scores the plain mean of `accepted` and applies it only if it lowers

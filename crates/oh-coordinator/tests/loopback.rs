@@ -265,10 +265,11 @@ fn test_no_heldout_bytes_in_any_frame_sent() {
 
 #[test]
 fn test_replayed_update_is_rejected() {
+    let ledger_path = fresh_ledger("replay");
     let mut coordinator = Coordinator::new(
         &corpus(6000, 3),
         &settings(),
-        Ledger::open(&fresh_ledger("replay")).unwrap(),
+        Ledger::open(&ledger_path).unwrap(),
     )
     .unwrap();
     let base = coordinator.begin_round();
@@ -293,4 +294,38 @@ fn test_replayed_update_is_rejected() {
     // An update presented against the wrong work unit is dropped.
     let wrong = coordinator.judge(&unit1, &update).unwrap();
     assert!(matches!(wrong, Verdict::Dropped(_)), "got {wrong:?}");
+
+    // One credit line and one rejected line per rejection; dropped updates
+    // get no receipt and no line.
+    let text = std::fs::read_to_string(&ledger_path).unwrap();
+    assert_eq!(text.matches("\"kind\":\"credit\"").count(), 1);
+    assert_eq!(text.matches("\"kind\":\"rejected\"").count(), 2);
+    assert_eq!(text.matches("replay of an earlier update").count(), 2);
+}
+
+#[test]
+fn test_round_is_discarded_when_the_average_does_not_help() {
+    let mut coordinator = Coordinator::new(
+        &corpus(6000, 4),
+        &settings(),
+        Ledger::open(&fresh_ledger("discard")).unwrap(),
+    )
+    .unwrap();
+    let base = coordinator.begin_round();
+    let before = coordinator.heldout_bpb();
+
+    // A large, fixed push on every parameter wrecks the model.
+    let harmful = vec![vec![5.0f32; base.params.len()]];
+    let report = coordinator.finish_round(&harmful);
+    assert!(report.aggregate_turings <= 0.0, "got {report:?}");
+    assert!(!report.applied, "a harmful average was applied");
+    assert_eq!(report.heldout_bpb, before, "the model changed");
+
+    // A zero average scores exactly zero, which also discards the round.
+    coordinator.begin_round();
+    let zero = vec![vec![0.0f32; base.params.len()]];
+    let report = coordinator.finish_round(&zero);
+    assert_eq!(report.aggregate_turings, 0.0);
+    assert!(!report.applied);
+    assert_eq!(report.heldout_bpb, before);
 }
