@@ -37,5 +37,5 @@ Every filter states what it could not see. A pass is not proof of absence. Trunc
 
 ## License
 
-Apache License 2.0 with LLVM Exception (Apache-2.0 WITH LLVM-exception).
+GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later). See LICENSE.
 Copyright (c) 2026 Drake Stapleton <aien@aienos.com> & AIEN <aien@aienos.com>.
