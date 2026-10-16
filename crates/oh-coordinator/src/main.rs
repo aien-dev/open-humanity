@@ -6,13 +6,22 @@
 //!        [--seed <n>] [--ledger <path>] [--dim <n>] [--outer-lr <f>]
 //!        [--baseline | --simulate [--keep-fraction <f>] [--no-compression]
 //!        [--no-update-gate] [--shard-order fixed|rotate]]
+//!        [--key-from-vault <NAME> [--vault-bin <path>]]
 //!
 //! `--baseline` trains the same shards for the same total steps in this one
 //! process, with no network, and prints the same held-out measurements.
 //! `--simulate` runs the volunteer protocol (train each shard from the
 //! round's base, compress, score gate, aggregate) in this one process, so
 //! each knob can be changed on its own and runs repeat exactly.
+//!
+//! The coordinator signs with a fresh key each start unless
+//! `--key-from-vault <NAME>` is given: then it runs `atlas-vault get <NAME>`
+//! (or `--vault-bin <path> get <NAME>`), reads a 64 hex character seed from
+//! its output into memory, and signs with the same key on every start, so
+//! volunteers pin it once. The seed is never written to disk or printed.
 
+use beacon_core::Keypair;
+use oh_coordinator::identity::keypair_from_vault;
 use oh_coordinator::{
     baseline, simulate, Coordinator, Settings, ShardOrder, SimOptions, DEFAULT_LISTEN,
     DEFAULT_OUTER_LR,
@@ -36,6 +45,8 @@ struct Args {
     mode: Mode,
     settings: Settings,
     sim: SimOptions,
+    key_from_vault: Option<String>,
+    vault_bin: PathBuf,
 }
 
 fn parse_args() -> Result<Args, String> {
@@ -54,6 +65,8 @@ fn parse_args() -> Result<Args, String> {
             outer_lr: DEFAULT_OUTER_LR,
         },
         sim: SimOptions::default(),
+        key_from_vault: None,
+        vault_bin: PathBuf::from("atlas-vault"),
     };
     let mut it = std::env::args().skip(1);
     while let Some(flag) = it.next() {
@@ -84,6 +97,8 @@ fn parse_args() -> Result<Args, String> {
             "--listen" => args.listen = value.clone(),
             "--rounds" => args.rounds = value.parse().map_err(|_| bad())?,
             "--ledger" => args.ledger = PathBuf::from(&value),
+            "--key-from-vault" => args.key_from_vault = Some(value.clone()),
+            "--vault-bin" => args.vault_bin = PathBuf::from(&value),
             "--volunteers-per-round" => {
                 s.volunteers_per_round = value.parse().map_err(|_| bad())?
             }
@@ -162,10 +177,18 @@ fn run(args: Args) -> Result<(), String> {
 
     let ledger = Ledger::open(&args.ledger)
         .map_err(|e| format!("cannot open ledger {}: {e}", args.ledger.display()))?;
-    let mut coordinator = Coordinator::new(&corpus, &args.settings, ledger)?;
+    let (keypair, key_source) = match &args.key_from_vault {
+        Some(name) => (
+            keypair_from_vault(&args.vault_bin, name)?,
+            format!("from atlas-vault entry {name}"),
+        ),
+        None => (Keypair::generate(), "fresh for this run".to_string()),
+    };
+    let mut coordinator = Coordinator::with_keypair(&corpus, &args.settings, ledger, keypair)?;
     let listener = TcpListener::bind(&args.listen)
         .map_err(|e| format!("cannot listen on {}: {e}", args.listen))?;
     println!("coordinator key {}", hex(&coordinator.pubkey()));
+    println!("coordinator key source: {key_source}");
     println!(
         "run {} listening on {}: {} training bytes in {} shards, {} held-out bytes sealed",
         hex(&coordinator.run_id()),

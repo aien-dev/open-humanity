@@ -30,6 +30,18 @@ impl Keypair {
         }
     }
 
+    /// Rebuilds the keypair whose 32-byte Ed25519 secret seed is `seed`
+    /// (ed25519-dalek `SigningKey::from_bytes`). The same seed always gives
+    /// the same keypair, so an identity can outlive one process.
+    pub fn from_seed(seed: &[u8; 32]) -> Self {
+        let signing_key = SigningKey::from_bytes(seed);
+        let verifying_key = signing_key.verifying_key();
+        Self {
+            signing_key,
+            verifying_key,
+        }
+    }
+
     pub fn pubkey_bytes(&self) -> [u8; 32] {
         self.verifying_key.to_bytes()
     }
@@ -243,6 +255,18 @@ impl ReplayProtector {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_keypair_from_seed_is_stable_and_signs() {
+        let a = Keypair::from_seed(&[7u8; 32]);
+        let b = Keypair::from_seed(&[7u8; 32]);
+        let c = Keypair::from_seed(&[8u8; 32]);
+        assert_eq!(a.pubkey_bytes(), b.pubkey_bytes());
+        assert_ne!(a.pubkey_bytes(), c.pubkey_bytes());
+        let sig = a.sign(b"hello");
+        assert!(verify_signature(&b.pubkey_bytes(), b"hello", &sig).is_ok());
+        assert!(verify_signature(&c.pubkey_bytes(), b"hello", &sig).is_err());
+    }
 
     #[test]
     fn test_ephemeral_agreement_matches_on_both_sides() {

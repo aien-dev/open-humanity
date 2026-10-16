@@ -9,6 +9,8 @@
 //! and, if accepted, trained on after the round's aggregate step. The
 //! held-out bytes never leave this process.
 
+pub mod identity;
+
 use beacon_core::Keypair;
 use oh_core::{
     apply, coordinator_handshake, pseudo_gradient, recv_submission, send, BaseModel,
@@ -186,12 +188,28 @@ pub struct Coordinator {
 impl Coordinator {
     /// Builds the starting model from `settings.seed` and a fresh signing key.
     pub fn new(corpus: &[u8], settings: &Settings, ledger: Ledger) -> Result<Self, String> {
+        Self::with_keypair(corpus, settings, ledger, Keypair::generate())
+    }
+
+    /// Like `new`, signing with `keypair` (for example one rebuilt from
+    /// atlas-vault, see `identity`), so the coordinator keeps one identity
+    /// across restarts. The run id still differs on every start: it mixes
+    /// in 16 fresh random bytes, so work units and receipts from an earlier
+    /// run never match this one.
+    pub fn with_keypair(
+        corpus: &[u8],
+        settings: &Settings,
+        ledger: Ledger,
+        keypair: Keypair,
+    ) -> Result<Self, String> {
         let (train, heldout) = split_corpus(corpus, settings.heldout_fraction)?;
         check_settings(train, settings)?;
-        let keypair = Keypair::generate();
+        let mut fresh = [0u8; 16];
+        rand::RngCore::fill_bytes(&mut rand::rngs::OsRng, &mut fresh);
         let mut hasher = blake3::Hasher::new();
         hasher.update(&keypair.pubkey_bytes());
         hasher.update(&settings.seed.to_le_bytes());
+        hasher.update(&fresh);
         let mut run_id = [0u8; 16];
         run_id.copy_from_slice(&hasher.finalize().as_bytes()[..16]);
         Ok(Self {
@@ -809,6 +827,31 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         Ledger::open(&dir.join("ledger.jsonl")).unwrap()
+    }
+
+    #[test]
+    fn test_restart_with_the_same_key_keeps_identity_but_not_run_id() {
+        let text = corpus(6000, 4);
+        let s = settings(3, 1.0);
+        let start = |name| {
+            Coordinator::with_keypair(
+                &text,
+                &s,
+                fresh_ledger(name),
+                Keypair::from_seed(&[9u8; 32]),
+            )
+            .unwrap()
+        };
+        let first = start("restart-1");
+        let second = start("restart-2");
+        assert_eq!(
+            first.pubkey(),
+            Keypair::from_seed(&[9u8; 32]).pubkey_bytes()
+        );
+        assert_eq!(first.pubkey(), second.pubkey());
+        assert_ne!(first.run_id(), second.run_id());
+        let fresh = Coordinator::new(&text, &s, fresh_ledger("restart-3")).unwrap();
+        assert_ne!(fresh.pubkey(), first.pubkey());
     }
 
     #[test]
