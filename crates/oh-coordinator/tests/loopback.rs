@@ -2,7 +2,7 @@
 
 use beacon_core::Keypair;
 use oh_coordinator::{Coordinator, RoundReport, Settings, Verdict};
-use oh_core::{read_frame, Ledger, Update, WorkUnit};
+use oh_core::{read_frame, volunteer_handshake, CoordinatorPin, Ledger, Update, WorkUnit};
 use oh_volunteer::{run_once, Outcome};
 use std::collections::HashSet;
 use std::io::{Cursor, Read, Write};
@@ -86,18 +86,30 @@ fn fresh_ledger(name: &str) -> PathBuf {
 }
 
 /// Starts one volunteer thread that takes `rounds` work units from `addr`.
+/// With `pin`, each connection opens the encrypted transport pinned to that
+/// coordinator key (as `Coordinator::serve` expects); without, it speaks
+/// plain frames, for tests that drive `run_round` directly and read them.
 fn spawn_volunteer(
     addr: SocketAddr,
     rounds: u32,
     seed: u64,
+    pin: Option<[u8; 32]>,
 ) -> thread::JoinHandle<([u8; 32], Vec<Outcome>)> {
     thread::spawn(move || {
         let keypair = Keypair::generate();
         let settings = volunteer_settings(seed);
         let outcomes = (0..rounds)
             .map(|_| {
-                let mut stream = TcpStream::connect(addr).unwrap();
-                run_once(&mut stream, &keypair, &settings).unwrap()
+                let stream = TcpStream::connect(addr).unwrap();
+                match pin {
+                    Some(key) => {
+                        let mut secure =
+                            volunteer_handshake(stream, &keypair, CoordinatorPin::Key(key))
+                                .unwrap();
+                        run_once(&mut secure, &keypair, &settings).unwrap()
+                    }
+                    None => run_once(&mut { stream }, &keypair, &settings).unwrap(),
+                }
             })
             .collect();
         (keypair.pubkey_bytes(), outcomes)
@@ -125,7 +137,9 @@ fn test_two_volunteers_two_rounds_over_loopback() {
             .unwrap();
         reports
     });
-    let volunteers: Vec<_> = (0..2).map(|i| spawn_volunteer(addr, 2, 10 + i)).collect();
+    let volunteers: Vec<_> = (0..2)
+        .map(|i| spawn_volunteer(addr, 2, 10 + i, Some(key)))
+        .collect();
     let results: Vec<_> = volunteers.into_iter().map(|v| v.join().unwrap()).collect();
     let reports = server.join().unwrap();
 
@@ -224,7 +238,9 @@ fn test_no_heldout_bytes_in_any_frame_sent() {
             coordinator.run_round(&mut conns).unwrap();
         }
     });
-    let volunteers: Vec<_> = (0..2).map(|i| spawn_volunteer(addr, 2, 20 + i)).collect();
+    let volunteers: Vec<_> = (0..2)
+        .map(|i| spawn_volunteer(addr, 2, 20 + i, None))
+        .collect();
     for v in volunteers {
         v.join().unwrap();
     }

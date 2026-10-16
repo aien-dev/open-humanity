@@ -61,9 +61,24 @@ coord_log="$WORK/coordinator.log"
     --ledger "$WORK/ledger.jsonl" > "$coord_log" 2>&1 &
 coord_pid=$!
 
+# The volunteer pins the key the coordinator prints, so the encrypted link
+# only opens to this coordinator. Wait up to 30 seconds for that line.
+key=""
+for _ in $(seq 1 300); do
+    key="$(sed -n 's/^coordinator key \([0-9a-f]\{64\}\)$/\1/p' "$coord_log" | head -n 1)"
+    if [ -n "$key" ] || ! kill -0 "$coord_pid" 2>/dev/null; then break; fi
+    sleep 0.1
+done
+if [ -z "$key" ]; then
+    echo "The coordinator did not start:"
+    cat "$coord_log"
+    exit 1
+fi
+
 vol_log="$WORK/volunteer.log"
 "$BIN/oh-volunteer" teach --coordinator "127.0.0.1:$PORT" --teacher "$TEACHER" \
-    --batches "$BATCHES" --max-tokens "$MAX_TOKENS" --seed "$SEED" > "$vol_log" 2>&1 &
+    --batches "$BATCHES" --max-tokens "$MAX_TOKENS" --seed "$SEED" \
+    --coordinator-key "$key" > "$vol_log" 2>&1 &
 vol_pid=$!
 
 vol_status=0

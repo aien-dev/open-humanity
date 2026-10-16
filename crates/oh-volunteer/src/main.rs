@@ -1,11 +1,18 @@
 //! `oh-volunteer`: lend this machine's time to train the shared model.
 //!
 //! Usage: oh-volunteer --coordinator <addr> [--rounds <n>] [--seed <n>]
-//!        [--keep <fraction>] [--coordinator-key <hex>]
+//!        [--keep <fraction>] (--coordinator-key <hex> | --trust-first-use)
 //!
 //!        oh-volunteer teach --coordinator <addr> [--teacher <host:port>]
 //!        [--model <id>] [--batches <n>] [--max-tokens <n>] [--seed <n>]
-//!        [--coordinator-key <hex>]
+//!        (--coordinator-key <hex> | --trust-first-use)
+//!
+//! Every connection is encrypted (`oh_core::volunteer_handshake`). The
+//! coordinator must prove it holds `--coordinator-key` (printed by
+//! oh-coordinator at start as "coordinator key <hex>"). Without that key the
+//! volunteer refuses to connect unless `--trust-first-use` is given, which
+//! accepts the first key seen, prints a warning, and pins it for the rest
+//! of the run.
 //!
 //! `teach` asks a language model running on this machine (default
 //! 127.0.0.1:18091; the model id is read from its /v1/models unless
@@ -13,7 +20,9 @@
 //! Personal Data Firewall, and sends only the firewalled text.
 
 use beacon_core::Keypair;
-use oh_core::{discover_model, LocalHttpTeacher};
+use oh_core::{
+    discover_model, volunteer_handshake, CoordinatorPin, EncryptedStream, LocalHttpTeacher,
+};
 use oh_volunteer::{
     parse_key, run_once, summary_line, teach_once, teach_summary_line, Settings, VolunteerError,
     DEFAULT_KEEP_FRACTION, DEFAULT_TEACHER_ADDR, DEFAULT_TEACH_MAX_TOKENS,
@@ -29,6 +38,7 @@ struct Args {
     rounds: u32,
     settings: Settings,
     teach: Option<TeachArgs>,
+    trust_first_use: bool,
 }
 
 struct TeachArgs {
@@ -47,6 +57,7 @@ fn parse_args() -> Result<Args, String> {
             coordinator_key: None,
         },
         teach: None,
+        trust_first_use: false,
     };
     let mut it = std::env::args().skip(1).peekable();
     if it.peek().map(String::as_str) == Some("teach") {
@@ -58,6 +69,10 @@ fn parse_args() -> Result<Args, String> {
         });
     }
     while let Some(flag) = it.next() {
+        if flag == "--trust-first-use" {
+            args.trust_first_use = true;
+            continue;
+        }
         let value = it.next().ok_or(format!("{flag} needs a value"))?;
         let bad = || format!("bad value for {flag}: {value}");
         match (flag.as_str(), args.teach.as_mut()) {
@@ -90,7 +105,42 @@ fn parse_args() -> Result<Args, String> {
     if args.coordinator.is_empty() {
         return Err("--coordinator <addr> is required".into());
     }
+    if args.settings.coordinator_key.is_none() && !args.trust_first_use {
+        return Err("refusing to connect without the coordinator's key: pass \
+                    --coordinator-key <hex> (oh-coordinator prints it at start as \
+                    \"coordinator key <hex>\"), or --trust-first-use to accept the first \
+                    key seen"
+            .into());
+    }
     Ok(args)
+}
+
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+/// Connects and opens the encrypted transport. Pinned to
+/// `--coordinator-key`, or to the key accepted on first use; after the
+/// first connection the key is kept, so work units signed by any other key
+/// are refused as well.
+fn open(args: &mut Args, keypair: &Keypair) -> Result<EncryptedStream<TcpStream>, String> {
+    let stream = connect(&args.coordinator)?;
+    let pin = match args.settings.coordinator_key {
+        Some(key) => CoordinatorPin::Key(key),
+        None => CoordinatorPin::TrustFirstUse,
+    };
+    let secure = volunteer_handshake(stream, keypair, pin)
+        .map_err(|e| format!("secure connection to {} failed: {e}", args.coordinator))?;
+    if pin == CoordinatorPin::TrustFirstUse {
+        let key = hex(&secure.peer_identity());
+        eprintln!(
+            "WARNING: trusting coordinator key {key} on first use. Anyone between this \
+             machine and the coordinator could have supplied it. Check it against the \
+             coordinator's \"coordinator key\" line and pass --coordinator-key {key} next time."
+        );
+    }
+    args.settings.coordinator_key = Some(secure.peer_identity());
+    Ok(secure)
 }
 
 /// The coordinator may not be listening yet; keep trying for a minute.
@@ -114,15 +164,11 @@ fn connect(addr: &str) -> Result<TcpStream, String> {
 
 fn train(args: &mut Args, keypair: &Keypair) -> ExitCode {
     for _ in 0..args.rounds {
-        let result = connect(&args.coordinator).and_then(|mut stream| {
+        let result = open(args, keypair).and_then(|mut stream| {
             run_once(&mut stream, keypair, &args.settings).map_err(|e| e.to_string())
         });
         match result {
-            Ok(outcome) => {
-                println!("{}", summary_line(&outcome));
-                // Trust the first coordinator key seen for the rest of the run.
-                args.settings.coordinator_key = Some(outcome.coordinator_key);
-            }
+            Ok(outcome) => println!("{}", summary_line(&outcome)),
             Err(e) => {
                 eprintln!("oh-volunteer: work unit failed: {e}");
                 return ExitCode::FAILURE;
@@ -148,7 +194,7 @@ fn teach(args: &mut Args, keypair: &Keypair) -> ExitCode {
     let teacher = LocalHttpTeacher::new(&t.teacher, &model);
     let max_tokens = t.max_tokens;
     for batch in 1..=args.rounds {
-        let mut stream = match connect(&args.coordinator) {
+        let mut stream = match open(args, keypair) {
             Ok(s) => s,
             Err(e) => {
                 eprintln!("oh-volunteer: {e}");
@@ -156,10 +202,7 @@ fn teach(args: &mut Args, keypair: &Keypair) -> ExitCode {
             }
         };
         match teach_once(&mut stream, keypair, &args.settings, &teacher, max_tokens) {
-            Ok(outcome) => {
-                println!("{}", teach_summary_line(batch, &outcome));
-                args.settings.coordinator_key = Some(outcome.coordinator_key);
-            }
+            Ok(outcome) => println!("{}", teach_summary_line(batch, &outcome)),
             // A refusal is this batch's answer, not a failure of the run.
             Err(e @ (VolunteerError::Firewall(_) | VolunteerError::EmptyTeaching)) => {
                 println!("Batch {batch}: not sent, {e}");

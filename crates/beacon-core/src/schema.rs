@@ -42,6 +42,8 @@ pub enum BeaconError {
     TimestampDrift { drift_secs: u64, max_allowed: u64 },
     #[error("Replay attack detected for packet ID: {0}")]
     ReplayDetected(Uuid),
+    #[error("Key agreement failed: the peer's public key gives no shared secret")]
+    KeyAgreementFailed,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

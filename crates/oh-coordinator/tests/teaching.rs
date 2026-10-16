@@ -3,9 +3,12 @@
 
 use beacon_core::Keypair;
 use oh_coordinator::{Coordinator, RoundReport, Settings, TeachingVerdict};
-use oh_core::{Ledger, Teacher, TeacherError, TeachingBatch};
+use oh_core::{
+    volunteer_handshake, CoordinatorPin, EncryptedStream, Ledger, Teacher, TeacherError,
+    TeachingBatch,
+};
 use oh_volunteer::{run_once, teach_once};
-use std::net::{TcpListener, TcpStream};
+use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::PathBuf;
 use std::thread;
 
@@ -96,6 +99,17 @@ fn good_text(seed: u64) -> String {
     String::from_utf8(corpus(1500, seed)).unwrap()
 }
 
+/// Connects to a coordinator started with `serve` and opens the encrypted
+/// transport, pinned to `key`.
+fn secure(addr: SocketAddr, node: &Keypair, key: [u8; 32]) -> EncryptedStream<TcpStream> {
+    volunteer_handshake(
+        TcpStream::connect(addr).unwrap(),
+        node,
+        CoordinatorPin::Key(key),
+    )
+    .unwrap()
+}
+
 #[test]
 fn test_teacher_and_trainer_share_a_round_over_loopback() {
     let ledger_path = fresh_ledger("shared-round");
@@ -121,7 +135,7 @@ fn test_teacher_and_trainer_share_a_round_over_loopback() {
     let trainer = thread::spawn(move || {
         let keypair = Keypair::generate();
         for _ in 0..2 {
-            let mut stream = TcpStream::connect(addr).unwrap();
+            let mut stream = secure(addr, &keypair, key);
             run_once(&mut stream, &keypair, &volunteer_settings(11)).unwrap();
         }
     });
@@ -129,7 +143,7 @@ fn test_teacher_and_trainer_share_a_round_over_loopback() {
     let mut outcomes = Vec::new();
     for round in 0..2u64 {
         let teacher = FakeTeacher(good_text(100 + round));
-        let mut stream = TcpStream::connect(addr).unwrap();
+        let mut stream = secure(addr, &teacher_node, key);
         outcomes.push(
             teach_once(
                 &mut stream,

@@ -31,7 +31,7 @@ The teacher must be on the same machine. `LocalHttpTeacher` refuses any address 
 
 The hint itself comes from the coordinator's own training shard, so sending it to a local teacher reveals nothing new. A model that echoes its hint will send those (at most 200) shard bytes back inside its passage; tests check that no other shard bytes leave.
 
-Frames: an update frame is unchanged. A teaching frame is the 8 bytes `OHTEACH1` followed by the bincode batch (`send_teaching`, `recv_submission`). An update frame begins with its run id, a BLAKE3-derived value, so it collides with the tag with probability 2^-64; existing volunteers keep working unmodified.
+Frames: an update frame is unchanged. A teaching frame is the 8 bytes `OHTEACH1` followed by the bincode batch (`send_teaching`, `recv_submission`). An update frame begins with its run id, a BLAKE3-derived value, so it collides with the tag with probability 2^-64. Since follow-up F3 every frame, teaching or update, travels inside the encrypted transport ([volunteer-compute-v0.md](volunteer-compute-v0.md#encrypted-transport)), so the passage is readable only by the coordinator; `teach` takes `--coordinator-key <hex>` or `--trust-first-use` like training mode. Volunteers built before F3 cannot connect.
 
 ## Scoring
 
