@@ -36,6 +36,28 @@ impl Scorer {
         before - after
     }
 
+    /// Turings earned by teaching text: bits(base) - bits(base trained on
+    /// `text` for `steps` steps with `seed`) on the held-out set. Training
+    /// happens on the base parameters inside `model`, which is restored
+    /// afterwards. Text shorter than two bytes trains nothing and scores 0.
+    ///
+    /// Panics if `base` does not match the model's parameter count.
+    pub fn score_text<L: Learner>(
+        &self,
+        model: &mut L,
+        text: &[u8],
+        steps: usize,
+        seed: u64,
+    ) -> f64 {
+        let saved = model.params();
+        model.set_params(&self.base);
+        let before = model.heldout_bits(&self.heldout);
+        model.train_steps(text, steps, seed);
+        let after = model.heldout_bits(&self.heldout);
+        model.set_params(&saved);
+        before - after
+    }
+
     /// True when `t` is a finite score above `epsilon`.
     pub fn accept(&self, t: f64) -> bool {
         t.is_finite() && t > self.epsilon
@@ -316,6 +338,50 @@ mod tests {
         eprintln!("random delta: {t:.2} Turings");
         assert!(t < 0.0, "random delta scored {t}");
         assert!(!s.accept(t));
+    }
+
+    #[test]
+    fn test_teaching_text_like_heldout_scores_positive() {
+        let mut model = TinyByteModel::new(16, 1);
+        let s = scorer(model.params());
+        let text = corpus(TRAIN, 2048);
+        let t = s.score_text(&mut model, &text, 400, 2);
+        eprintln!("teaching text like held-out: {t:.2} Turings");
+        assert!(s.accept(t), "scored {t}");
+        assert_eq!(model.params(), s.base, "model was not restored");
+        // Same inputs, same score.
+        assert_eq!(t, s.score_text(&mut model, &text, 400, 2));
+    }
+
+    /// Noise must not earn Turings from a model that already knows the
+    /// language. From a freshly initialised model, noise does earn a little:
+    /// training flattens the random starting guesses toward uniform, which
+    /// helps on any text. That gain is pinned here to stay tiny next to what
+    /// real text earns from the same start.
+    #[test]
+    fn test_random_bytes_as_teaching_text_score_at_most_zero() {
+        let mut model = TinyByteModel::new(16, 1);
+        let fresh = model.params();
+        let mut trained = TinyByteModel::new(16, 1);
+        trained.train_steps(&corpus(TRAIN, 2048), 400, 2);
+        let mut rng = SplitMix64::new(9);
+        let noise: Vec<u8> = (0..2048).map(|_| rng.next_u64() as u8).collect();
+
+        let s = scorer(trained.params());
+        let t = s.score_text(&mut model, &noise, 400, 2);
+        eprintln!("random bytes on a trained model: {t:.2} Turings");
+        assert!(t <= 0.0, "random bytes scored {t}");
+        assert!(!s.accept(t));
+
+        let s = scorer(fresh);
+        let noise_t = s.score_text(&mut model, &noise, 400, 2);
+        let text_t = s.score_text(&mut model, &corpus(TRAIN, 2048), 400, 2);
+        eprintln!("from a fresh model: random bytes {noise_t:.2}, real text {text_t:.2} Turings");
+        assert!(noise_t < 0.05 * text_t, "noise {noise_t} vs text {text_t}");
+
+        // Empty or one-byte text trains nothing and scores exactly zero.
+        assert_eq!(s.score_text(&mut model, b"", 400, 2), 0.0);
+        assert_eq!(s.score_text(&mut model, b"a", 400, 2), 0.0);
     }
 
     #[test]

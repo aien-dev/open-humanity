@@ -23,7 +23,7 @@ Drake approved this direction in writing on 2026-10-16: "implement the Open Huma
 3. Volunteers train locally and send back only a compressed update. Each update is scored in Turings (defined below). An update scoring zero or less is rejected. The score is credited to the volunteer.
 4. Personal data never leaves the volunteer's machine.
 5. Build for Drake's one model first (Qwen as teacher later). Open Humanity does not police what others run.
-6. Later, a local model generates teaching text that is scored the same way ("AI v1 teaches AI v2"). Not part of version 0.
+6. Later, a local model generates teaching text that is scored the same way ("AI v1 teaches AI v2"). Not part of volunteer compute v0; built next, see [qwen-teacher-v0.md](qwen-teacher-v0.md).
 
 The rest of the old promise stands: no user data is collected, and nothing is harvested.
 
@@ -65,6 +65,8 @@ Signing bytes for a struct are the bincode bytes of that struct with its `sig` f
   The coordinator's signed answer: the score and whether the update was kept.
 
 Over TCP, each message travels in a frame: a 4-byte big-endian length, then that many bytes of bincode. Frames larger than 64 MiB are refused before any memory is set aside for them.
+
+Teaching mode adds one message, `TeachingBatch { run_id, round, base_digest, node_pubkey, text, text_digest, sig }`, signed the same way and sent in a frame tagged `OHTEACH1`. The coordinator scores it by training a copy of the base on the text and measuring held-out bits, and trains the shared model on accepted text after the round's update aggregate step, keeping each text only if held-out bits drop again. Details: [qwen-teacher-v0.md](qwen-teacher-v0.md).
 
 ## Not built in version 0
 

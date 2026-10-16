@@ -3,13 +3,16 @@
 //! The coordinator splits a corpus into training shards and a sealed held-out
 //! tail, hands each volunteer a signed work unit, scores every update in
 //! Turings against the held-out tail, and keeps the plain mean of the
-//! accepted updates only when that mean also lowers held-out bits. The
+//! accepted updates only when that mean also lowers held-out bits. A
+//! volunteer may answer a work unit with teaching text instead of an update;
+//! that text is scored the same way (train a copy, measure held-out bits)
+//! and, if accepted, trained on after the round's aggregate step. The
 //! held-out bytes never leave this process.
 
 use beacon_core::Keypair;
 use oh_core::{
-    apply, recv, send, BaseModel, Learner, Ledger, LedgerError, Receipt, Scorer, TinyByteModel,
-    Update, WorkUnit,
+    apply, recv_submission, send, BaseModel, Learner, Ledger, LedgerError, Receipt, Scorer,
+    Submission, TeachingBatch, TinyByteModel, Update, WorkUnit,
 };
 use std::io::{Read, Write};
 use std::net::TcpListener;
@@ -20,6 +23,9 @@ pub const DEFAULT_LISTEN: &str = "127.0.0.1:18099";
 
 /// Smallest per-update score, in bits, that counts as an improvement.
 pub const EPSILON: f64 = 1e-3;
+
+/// Largest teaching batch the coordinator will train on, in bytes.
+pub const MAX_TEACHING_TEXT_BYTES: usize = 1024 * 1024;
 
 #[derive(Debug, Clone)]
 pub struct Settings {
@@ -38,20 +44,32 @@ pub struct RoundReport {
     /// Score of the mean of the accepted updates; zero when none were accepted.
     pub aggregate_turings: f64,
     pub applied: bool,
+    /// Teaching batches accepted this round.
+    pub taught: usize,
+    /// Accepted teaching batches the shared model was then trained on (each
+    /// is kept only if it still lowers held-out bits after the aggregate step).
+    pub taught_applied: usize,
     /// Held-out bits per byte after the round.
     pub heldout_bpb: f64,
 }
 
 impl RoundReport {
     pub fn line(&self) -> String {
-        format!(
+        let mut line = format!(
             "round={} accepted={} aggregate_T={:.3} applied={} heldout_bpb={:.4}",
             self.round,
             self.accepted,
             self.aggregate_turings,
             if self.applied { "yes" } else { "no" },
             self.heldout_bpb
-        )
+        );
+        if self.taught > 0 {
+            line.push_str(&format!(
+                " taught={} taught_applied={}",
+                self.taught, self.taught_applied
+            ));
+        }
+        line
     }
 }
 
@@ -68,6 +86,27 @@ pub enum Verdict {
         receipt: Receipt,
         delta: Vec<f32>,
     },
+}
+
+/// What the coordinator decided about one teaching batch.
+#[derive(Debug)]
+pub enum TeachingVerdict {
+    /// Bad signature, or not for this run, round and starting model. No receipt.
+    Dropped(String),
+    Rejected {
+        receipt: Receipt,
+        reason: String,
+    },
+    Accepted {
+        receipt: Receipt,
+        text: Vec<u8>,
+    },
+}
+
+/// Training seed for scoring a teaching batch: the first 8 bytes of its
+/// text digest, so the same text always gets the same score.
+pub fn teaching_seed(text_digest: &[u8; 32]) -> u64 {
+    u64::from_le_bytes(text_digest[..8].try_into().expect("8 bytes"))
 }
 
 /// Splits `corpus` into the training part and the sealed held-out tail.
@@ -234,6 +273,56 @@ impl Coordinator {
         Ok(Verdict::Accepted { receipt, delta })
     }
 
+    /// Checks, scores and records one teaching batch, the same way `judge`
+    /// handles an update: verify, refuse replays by text digest, score in
+    /// Turings by training a copy of the current model on the text, then
+    /// credit or record a rejection. The shared model is not changed here;
+    /// accepted text is trained on in `finish_round_with_teaching`.
+    pub fn judge_teaching(
+        &mut self,
+        unit: &WorkUnit,
+        batch: &TeachingBatch,
+    ) -> Result<TeachingVerdict, LedgerError> {
+        if let Err(e) = batch.verify_for(unit) {
+            return Ok(TeachingVerdict::Dropped(e.to_string()));
+        }
+        if batch.text.len() > MAX_TEACHING_TEXT_BYTES {
+            return self.reject_teaching(batch, 0.0, "teaching text is too long".into());
+        }
+        if !self.ledger.mark_seen(&batch.run_id, &batch.text_digest)? {
+            return self.reject_teaching(batch, 0.0, "replay of earlier teaching text".into());
+        }
+        let scorer = self.scorer();
+        let turings = scorer.score_text(
+            &mut self.model,
+            &batch.text,
+            self.steps as usize,
+            teaching_seed(&batch.text_digest),
+        );
+        if !scorer.accept(turings) {
+            return self.reject_teaching(batch, turings, "did not lower held-out bits".into());
+        }
+        let receipt = Receipt::for_teaching(&self.keypair, batch, turings, true);
+        self.ledger
+            .credit(&batch.node_pubkey, turings, &receipt.digest())?;
+        Ok(TeachingVerdict::Accepted {
+            receipt,
+            text: batch.text.clone(),
+        })
+    }
+
+    fn reject_teaching(
+        &mut self,
+        batch: &TeachingBatch,
+        turings: f64,
+        reason: String,
+    ) -> Result<TeachingVerdict, LedgerError> {
+        let receipt = Receipt::for_teaching(&self.keypair, batch, turings, false);
+        self.ledger
+            .record_rejection(&batch.node_pubkey, turings, &reason, &receipt.digest())?;
+        Ok(TeachingVerdict::Rejected { receipt, reason })
+    }
+
     /// Signs a rejection receipt and writes a rejected line to the ledger.
     fn reject(
         &mut self,
@@ -250,6 +339,20 @@ impl Coordinator {
     /// Scores the plain mean of `accepted` and applies it only if it lowers
     /// held-out bits; otherwise the round is discarded.
     pub fn finish_round(&mut self, accepted: &[Vec<f32>]) -> RoundReport {
+        self.finish_round_with_teaching(accepted, &[])
+    }
+
+    /// `finish_round`, then trains the shared model on each accepted teaching
+    /// text in order. Ordering: the update aggregate goes first, because the
+    /// updates were trained from this round's base and their mean only makes
+    /// sense applied to it. Each text is then trained on from wherever the
+    /// model now stands (same steps and seed as when it was scored) and kept
+    /// only if held-out bits drop again; otherwise that text is undone.
+    pub fn finish_round_with_teaching(
+        &mut self,
+        accepted: &[Vec<f32>],
+        taught: &[Vec<u8>],
+    ) -> RoundReport {
         let mut aggregate_turings = 0.0;
         let mut applied = false;
         if let Some(first) = accepted.first() {
@@ -267,18 +370,37 @@ impl Coordinator {
                 applied = true;
             }
         }
+        let mut taught_applied = 0;
+        for text in taught {
+            let saved = self.model.params();
+            let before = self.model.heldout_bits(&self.heldout);
+            self.model.train_steps(
+                text,
+                self.steps as usize,
+                teaching_seed(&oh_core::text_digest(text)),
+            );
+            let after = self.model.heldout_bits(&self.heldout);
+            if (before - after).is_finite() && before - after > 0.0 {
+                taught_applied += 1;
+            } else {
+                self.model.set_params(&saved);
+            }
+        }
         RoundReport {
             round: self.round,
             accepted: accepted.len(),
             aggregate_turings,
             applied,
+            taught: taught.len(),
+            taught_applied,
             heldout_bpb: self.heldout_bpb(),
         }
     }
 
     /// Runs one round over already-open connections, one per volunteer. All
     /// work units go out first so volunteers train at the same time; then
-    /// each update is read, judged and answered in connection order.
+    /// each update or teaching batch is read, judged and answered in
+    /// connection order.
     pub fn run_round<S: Read + Write>(&mut self, conns: &mut [S]) -> Result<RoundReport, String> {
         if conns.len() > self.shards.len() {
             return Err(format!(
@@ -301,37 +423,69 @@ impl Coordinator {
         }
 
         let mut accepted = Vec::new();
+        let mut taught = Vec::new();
         for (slot, (conn, unit)) in conns.iter_mut().zip(units).enumerate() {
             let Some(unit) = unit else { continue };
-            let update: Update = match recv(conn) {
-                Ok(u) => u,
+            let round = self.round;
+            let submission = match recv_submission(conn) {
+                Ok(s) => s,
                 Err(e) => {
-                    eprintln!("round {}: volunteer {slot}: no update: {e}", self.round);
+                    eprintln!("round {round}: volunteer {slot}: no update: {e}");
                     continue;
                 }
             };
-            let receipt = match self.judge(&unit, &update).map_err(|e| e.to_string())? {
-                Verdict::Dropped(reason) => {
-                    eprintln!("round {}: volunteer {slot}: dropped: {reason}", self.round);
-                    continue;
+            let receipt = match submission {
+                Submission::Update(update) => {
+                    match self.judge(&unit, &update).map_err(|e| e.to_string())? {
+                        Verdict::Dropped(reason) => {
+                            eprintln!("round {round}: volunteer {slot}: dropped: {reason}");
+                            continue;
+                        }
+                        Verdict::Rejected { receipt, reason } => {
+                            eprintln!("round {round}: volunteer {slot}: rejected: {reason}");
+                            receipt
+                        }
+                        Verdict::Accepted { receipt, delta } => {
+                            accepted.push(delta);
+                            receipt
+                        }
+                    }
                 }
-                Verdict::Rejected { receipt, reason } => {
-                    eprintln!("round {}: volunteer {slot}: rejected: {reason}", self.round);
-                    receipt
-                }
-                Verdict::Accepted { receipt, delta } => {
-                    accepted.push(delta);
-                    receipt
+                Submission::Teaching(batch) => {
+                    let bytes = batch.text.len();
+                    match self
+                        .judge_teaching(&unit, &batch)
+                        .map_err(|e| e.to_string())?
+                    {
+                        TeachingVerdict::Dropped(reason) => {
+                            eprintln!(
+                                "round {round}: volunteer {slot}: teaching dropped: {reason}"
+                            );
+                            continue;
+                        }
+                        TeachingVerdict::Rejected { receipt, reason } => {
+                            eprintln!(
+                                "round {round}: volunteer {slot}: teaching {bytes} bytes T={:.3} rejected: {reason}",
+                                receipt.turings
+                            );
+                            receipt
+                        }
+                        TeachingVerdict::Accepted { receipt, text } => {
+                            eprintln!(
+                                "round {round}: volunteer {slot}: teaching {bytes} bytes T={:.3} accepted",
+                                receipt.turings
+                            );
+                            taught.push(text);
+                            receipt
+                        }
+                    }
                 }
             };
             if let Err(e) = send(conn, &receipt) {
-                eprintln!(
-                    "round {}: volunteer {slot}: receipt not delivered: {e}",
-                    self.round
-                );
+                eprintln!("round {round}: volunteer {slot}: receipt not delivered: {e}");
             }
         }
-        Ok(self.finish_round(&accepted))
+        Ok(self.finish_round_with_teaching(&accepted, &taught))
     }
 
     /// Runs `rounds` rounds on `listener`, waiting each round for one

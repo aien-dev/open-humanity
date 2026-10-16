@@ -30,6 +30,8 @@ pub enum WireError {
     DeltaDigestMismatch,
     #[error("update does not belong to this work unit")]
     WorkUnitMismatch,
+    #[error("text digest does not match the text")]
+    TextDigestMismatch,
 }
 
 /// The coordinator's instruction: start from the model whose digest is
@@ -57,6 +59,22 @@ pub struct Update {
     pub delta: CompressedDelta,
     /// `delta_digest(&delta)`.
     pub delta_digest: [u8; 32],
+    pub sig: Vec<u8>,
+}
+
+/// Teaching text a volunteer's local model wrote for one work unit, after
+/// the volunteer ran it through the Personal Data Firewall. Like an update it
+/// is pinned to a run, round and starting model; unlike an update it carries
+/// text, which the coordinator trains on to score it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TeachingBatch {
+    pub run_id: [u8; 16],
+    pub round: u32,
+    pub base_digest: [u8; 32],
+    pub node_pubkey: [u8; 32],
+    pub text: Vec<u8>,
+    /// `text_digest(&text)`.
+    pub text_digest: [u8; 32],
     pub sig: Vec<u8>,
 }
 
@@ -96,6 +114,11 @@ pub fn params_digest(params: &[f32]) -> [u8; 32] {
         hasher.update(&p.to_le_bytes());
     }
     *hasher.finalize().as_bytes()
+}
+
+/// BLAKE3 of the raw teaching text.
+pub fn text_digest(text: &[u8]) -> [u8; 32] {
+    *blake3::hash(text).as_bytes()
 }
 
 /// BLAKE3 of the bincode bytes of a compressed delta.
@@ -155,6 +178,7 @@ macro_rules! signed_message {
 
 signed_message!(WorkUnit, coordinator_pubkey);
 signed_message!(Update, node_pubkey);
+signed_message!(TeachingBatch, node_pubkey);
 signed_message!(Receipt, coordinator_pubkey);
 
 impl WorkUnit {
@@ -239,6 +263,101 @@ impl Receipt {
 
     fn check_contents(&self) -> Result<(), WireError> {
         Ok(())
+    }
+}
+
+impl TeachingBatch {
+    /// Builds and signs teaching text for `unit`, copying its run, round and
+    /// starting model so the batch cannot be moved to another run or round.
+    pub fn new_signed(keypair: &Keypair, unit: &WorkUnit, text: Vec<u8>) -> Self {
+        let mut batch = Self {
+            run_id: unit.run_id,
+            round: unit.round,
+            base_digest: unit.base_digest,
+            node_pubkey: [0; 32],
+            text_digest: text_digest(&text),
+            text,
+            sig: Vec::new(),
+        };
+        batch.sign(keypair);
+        batch
+    }
+
+    /// `verify`, and the batch must belong to exactly `unit`'s run, round
+    /// and starting model.
+    pub fn verify_for(&self, unit: &WorkUnit) -> Result<(), WireError> {
+        if self.run_id != unit.run_id
+            || self.round != unit.round
+            || self.base_digest != unit.base_digest
+        {
+            return Err(WireError::WorkUnitMismatch);
+        }
+        self.verify()
+    }
+
+    fn check_contents(&self) -> Result<(), WireError> {
+        if text_digest(&self.text) != self.text_digest {
+            return Err(WireError::TextDigestMismatch);
+        }
+        Ok(())
+    }
+}
+
+impl Receipt {
+    /// The signed verdict on a teaching batch. `update_digest` holds
+    /// `TeachingBatch::digest`.
+    pub fn for_teaching(
+        keypair: &Keypair,
+        batch: &TeachingBatch,
+        turings: f64,
+        accepted: bool,
+    ) -> Self {
+        let mut receipt = Self {
+            run_id: batch.run_id,
+            round: batch.round,
+            update_digest: batch.digest(),
+            turings,
+            accepted,
+            coordinator_pubkey: [0; 32],
+            sig: Vec::new(),
+        };
+        receipt.sign(keypair);
+        receipt
+    }
+}
+
+/// Marks a frame that carries a `TeachingBatch`. Update frames are sent
+/// without a tag, exactly as before teaching mode existed; an update frame
+/// starts with its 16-byte run id, a BLAKE3-derived value, so it matches
+/// this tag only with probability 2^-64.
+pub const TEACHING_FRAME_TAG: &[u8; 8] = b"OHTEACH1";
+
+/// What a volunteer can send back for a work unit.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Submission {
+    Update(Update),
+    Teaching(TeachingBatch),
+}
+
+/// Writes a teaching batch as one tagged frame.
+pub fn send_teaching<W: Write>(w: &mut W, batch: &TeachingBatch) -> Result<(), WireError> {
+    let mut payload = TEACHING_FRAME_TAG.to_vec();
+    payload.extend_from_slice(&encode(batch));
+    write_frame(w, &payload)
+}
+
+/// Reads one frame and decodes it as a teaching batch if it carries the
+/// teaching tag, otherwise as an update.
+pub fn recv_submission<R: Read>(r: &mut R) -> Result<Submission, WireError> {
+    let payload = read_frame(r)?;
+    let decode_err = |e: bincode::Error| WireError::Decode(e.to_string());
+    match payload.strip_prefix(TEACHING_FRAME_TAG.as_slice()) {
+        Some(rest) => Ok(Submission::Teaching(
+            bincode::deserialize(rest).map_err(decode_err)?,
+        )),
+        None => Ok(Submission::Update(
+            bincode::deserialize(&payload).map_err(decode_err)?,
+        )),
     }
 }
 
@@ -457,6 +576,147 @@ mod tests {
         write_frame(&mut buf, &[1, 2, 3]).unwrap();
         let result: Result<WorkUnit, _> = recv(&mut Cursor::new(buf));
         assert!(matches!(result, Err(WireError::Decode(_))));
+    }
+
+    fn teaching(node: &Keypair, wu: &WorkUnit) -> TeachingBatch {
+        TeachingBatch::new_signed(
+            node,
+            wu,
+            b"A short clear passage about open models.".to_vec(),
+        )
+    }
+
+    #[test]
+    fn test_teaching_batch_sign_then_verify() {
+        let wu = unit(&Keypair::generate());
+        let node = Keypair::generate();
+        let batch = teaching(&node, &wu);
+        assert_eq!(batch.node_pubkey, node.pubkey_bytes());
+        assert_eq!(batch.text_digest, text_digest(&batch.text));
+        assert_eq!(batch.sig.len(), 64);
+        batch.verify().unwrap();
+        batch.verify_for(&wu).unwrap();
+        batch.verify_from(&node.pubkey_bytes()).unwrap();
+
+        // The signing bytes are the batch with `sig` emptied.
+        let mut unsigned = batch.clone();
+        unsigned.sig.clear();
+        assert_eq!(batch.signing_bytes(), encode(&unsigned));
+        assert_eq!(batch.digest(), *blake3::hash(&encode(&unsigned)).as_bytes());
+
+        let next_round = WorkUnit::new_signed(&Keypair::generate(), [7; 16], 4, [9; 32], vec![], 1);
+        assert!(matches!(
+            batch.verify_for(&next_round),
+            Err(WireError::WorkUnitMismatch)
+        ));
+    }
+
+    #[test]
+    fn test_tampered_teaching_batch_fails_verify() {
+        let wu = unit(&Keypair::generate());
+        let node = Keypair::generate();
+        let batch = teaching(&node, &wu);
+
+        let mut changed_text = batch.clone();
+        changed_text.text[0] ^= 1;
+        assert!(changed_text.verify().is_err());
+
+        let mut moved_round = batch.clone();
+        moved_round.round += 1;
+        assert!(matches!(moved_round.verify(), Err(WireError::BadSignature)));
+
+        let mut other_key = batch.clone();
+        other_key.node_pubkey = Keypair::generate().pubkey_bytes();
+        assert!(matches!(other_key.verify(), Err(WireError::BadSignature)));
+
+        // Re-signing after changing the text still fails: the digest must match.
+        let mut forged = batch.clone();
+        forged.text.push(b'!');
+        forged.sign(&node);
+        assert!(matches!(
+            forged.verify(),
+            Err(WireError::TextDigestMismatch)
+        ));
+    }
+
+    #[test]
+    fn test_replayed_teaching_text_is_caught_by_the_ledger() {
+        let path = std::env::temp_dir().join(format!(
+            "oh-core-wire-{}-teach-replay.jsonl",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_file(&path);
+        let mut ledger = crate::scoring::Ledger::open(&path).unwrap();
+        let wu = unit(&Keypair::generate());
+        let batch = teaching(&Keypair::generate(), &wu);
+        assert!(ledger.mark_seen(&batch.run_id, &batch.text_digest).unwrap());
+
+        // The same text under another key is still a replay.
+        let copied = teaching(&Keypair::generate(), &wu);
+        assert_eq!(copied.text_digest, batch.text_digest);
+        assert!(!ledger
+            .mark_seen(&copied.run_id, &copied.text_digest)
+            .unwrap());
+
+        // Replay protection survives a restart.
+        drop(ledger);
+        let mut reopened = crate::scoring::Ledger::open(&path).unwrap();
+        assert!(!reopened
+            .mark_seen(&batch.run_id, &batch.text_digest)
+            .unwrap());
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn test_teaching_receipt_names_the_batch() {
+        let coordinator = Keypair::generate();
+        let wu = unit(&coordinator);
+        let batch = teaching(&Keypair::generate(), &wu);
+        let receipt = Receipt::for_teaching(&coordinator, &batch, 3.25, true);
+        assert_eq!(receipt.update_digest, batch.digest());
+        assert_eq!((receipt.run_id, receipt.round), (batch.run_id, batch.round));
+        receipt.verify_from(&coordinator.pubkey_bytes()).unwrap();
+        let mut inflated = receipt.clone();
+        inflated.turings = 99.0;
+        assert!(matches!(inflated.verify(), Err(WireError::BadSignature)));
+    }
+
+    #[test]
+    fn test_submissions_dispatch_by_frame_tag() {
+        let wu = unit(&Keypair::generate());
+        let node = Keypair::generate();
+        let update = Update::new_signed(&node, &wu, delta());
+        let batch = teaching(&node, &wu);
+
+        let mut buf = Vec::new();
+        send(&mut buf, &update).unwrap();
+        send_teaching(&mut buf, &batch).unwrap();
+        let mut cursor = Cursor::new(buf.clone());
+        assert_eq!(
+            recv_submission(&mut cursor).unwrap(),
+            Submission::Update(update.clone())
+        );
+        assert_eq!(
+            recv_submission(&mut cursor).unwrap(),
+            Submission::Teaching(batch.clone())
+        );
+
+        // An untagged update frame is byte for byte what `send` wrote before
+        // teaching mode existed, so older volunteers still work.
+        let update_frame_len = 4 + u32::from_be_bytes(buf[..4].try_into().unwrap()) as usize;
+        let mut old = Vec::new();
+        send(&mut old, &update).unwrap();
+        assert_eq!(&buf[..update_frame_len], old.as_slice());
+
+        // A tagged frame with a broken body is a decode error, not an update.
+        let mut bad = TEACHING_FRAME_TAG.to_vec();
+        bad.extend_from_slice(&[1, 2, 3]);
+        let mut frame = Vec::new();
+        write_frame(&mut frame, &bad).unwrap();
+        assert!(matches!(
+            recv_submission(&mut Cursor::new(frame)),
+            Err(WireError::Decode(_))
+        ));
     }
 
     #[test]
