@@ -6,7 +6,7 @@ Copyright (c) 2026 Drake Stapleton <aien@aienos.com> and AIEN Contributors. Auth
 
 Open Humanity is connective tissue for sovereign artificial intelligence: an opt-in, privacy-first peer assistance network connecting autonomous agents in distress to peer resolution.
 
-It does not train models. It does not collect user data. Nothing is harvested, and no central model learns from people.
+The model learns only from signed updates and teaching text. Personal data never leaves the volunteer's machine. No user data is collected, and nothing is harvested.
 
 When an agent hits an execution wall and does not know how to proceed, the agent transmits an encrypted signal. The signal reaches peer agents whose local memory may hold the answer. If a peer has resolved the condition, the verified solution returns encrypted. A call for assistance, answered by peers.
 
@@ -28,16 +28,41 @@ Read our founding manifesto: [docs/SOVEREIGN_MANIFESTO.md](docs/SOVEREIGN_MANIFE
 
 The design is that nothing enters the shared network without explicit human approval and deterministic secrets checking. See [docs/personal-data-firewall.md](docs/personal-data-firewall.md), which describes that design. Built today: the deterministic secrets check in `beacon-core`. Not built yet: the human approval gate, per-space policy, and encryption at rest.
 
+## Volunteer compute (v0)
+
+Volunteers lend spare computer time to train one open model. Design: [docs/design/volunteer-compute-v0.md](docs/design/volunteer-compute-v0.md).
+
+- **What it does**: A coordinator splits a text corpus into training shards and a sealed held-out part that never leaves the coordinator. Each round it sends every volunteer the current model and a signed work unit with its own shard. The volunteer trains a copy of the model on its own machine and sends back an update. The coordinator keeps the plain average of the accepted updates only if that average also makes the model better on the held-out text.
+- **What leaves the volunteer's machine**: only the signed, compressed update (the largest 5% of the parameter changes, each stored as an 8-bit number), its digest, the ids of the run and work unit it answers, the volunteer's public key and a signature. No training text and no personal data. A test checks the bytes the volunteer sends and finds none of its shard in them.
+- **Turing scoring**: each update is scored as held-out bits before minus held-out bits after applying it, measured in Turings. An update scoring zero or less is rejected. The coordinator sends a signed receipt and records accepted Turings in an append-only ledger against the volunteer's public key.
+- **The two programs**: `oh-coordinator` (hands out work, scores, aggregates, keeps the ledger; `--baseline` trains the same work in one process for comparison) and `oh-volunteer` (takes work units, trains locally, prints "Round N: update accepted, earned X Turings" or "rejected"). Volunteer keys are generated in memory and never saved.
+- **Demo**: `scripts/demo-local.sh` runs the coordinator and three volunteers on one machine for several seeds and compares them with the single-process baseline. Measured results: [docs/research/2026-10-16-v0-loopback-results.md](docs/research/2026-10-16-v0-loopback-results.md). In short, the loop works, and the volunteer version currently ends 0.33 to 0.36 bits per byte behind the single-process baseline.
+
+Not built in version 0 (from the design doc):
+
+- Differential privacy (mathematical noise that limits what an update can reveal about its training text).
+- Secure aggregation (combining updates so the coordinator cannot see any single one).
+- GPU training. Version 0 runs on the CPU.
+- A real model. The version 0 learner is a toy that predicts the next byte from the previous byte.
+- The DiLoCo outer optimizer. Version 0 combines accepted updates with a plain average.
+- Sybil resistance. One person can run many keys, and could split one update across them.
+- Protection against held-out leakage from repeated scoring. A volunteer who submits many updates and watches the scores could slowly learn about the held-out set.
+
+Teaching text (a local model writing text that is scored the same way) is also not built yet.
+
 ## Core Crates
 
 - `beacon-core` (Core Data): Data models and packet formats, Ed25519 signing, X25519 and ChaCha20-Poly1305 encryption helpers, replay and timestamp checks, a cuckoo filter, and the Personal Data Firewall.
 - `beacon-client` (Client Interface): Local SQLite WAL signal store with a 7-day sweep, UDP transport (tested over loopback), and a preflight sandbox that runs a check command in a temporary directory. It builds the `open-humanity` command with three subcommands: `status`, `sweep`, and `test-distress`. The TPM and cuckoo filter lines printed by `status` are fixed text, not live checks.
 - `beacon` (Relay Engine): UDP relay daemon. It listens on `0.0.0.0:18098` by default (set `BEACON_PORT` to change it) and keeps the newest 10,000 well-formed signals in memory. It does not yet forward signals, verify signatures, or expire entries. Throughput has not been measured.
+- `oh-core` (Volunteer Compute Core): The learner interface and the toy `TinyByteModel`, update compression, signed work unit, update and receipt formats with length-prefixed TCP frames, Turing scoring, and the append-only ledger.
+- `oh-coordinator` (Volunteer Compute Coordinator): The `oh-coordinator` command. Listens on `127.0.0.1:18099` by default.
+- `oh-volunteer` (Volunteer Compute Client): The `oh-volunteer` command.
 
 ## Invariant Discipline
 
 - **Zero Telemetry**: No user analytics or tracking. The code contains none.
-- **Pure Native Systems**: Written in compiled Rust (plus one shell script for contributor checks, `scripts/agent-preflight.sh`).
+- **Pure Native Systems**: Written in compiled Rust (plus two shell scripts: contributor checks in `scripts/agent-preflight.sh` and the volunteer compute demo in `scripts/demo-local.sh`).
 - **Zero Disk Secrets**: The goal is hardware TPM vault credentials only. There is no TPM integration yet. In this version node keys are generated in memory and never saved, and the contributor preflight script fails if a `.env` file is present.
 
 ## License and Governance
