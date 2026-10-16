@@ -1,6 +1,6 @@
 # Qwen teacher, version 0
 
-Status: built on branch `feat/qwen-teacher-v0`. Builds on [volunteer-compute-v0.md](volunteer-compute-v0.md); read that first for work units, updates, receipts and Turings.
+Status: merged to main in #18. Follow-up F1 changed the teaching step count to one pass per passage (see Scoring). Builds on [volunteer-compute-v0.md](volunteer-compute-v0.md); read that first for work units, updates, receipts and Turings.
 
 ## Goal
 
@@ -35,12 +35,32 @@ Frames: an update frame is unchanged. A teaching frame is the 8 bytes `OHTEACH1`
 
 ## Scoring
 
-`Scorer::score_text(model, text, steps, seed)` returns bits(base) minus bits(base trained on the text for `steps` steps) on the sealed held-out set, restoring the model afterwards. `steps` is the run's per-work-unit step count; `seed` is the first 8 bytes of `text_digest`, so the same text always gets the same score. Accepted when T > epsilon, as for updates. Batches over 1 MiB are rejected. Replays are refused by text digest through the same ledger `mark_seen` record as delta digests, so the same text under a second key earns nothing.
+`Scorer::score_text(model, text, steps, seed)` returns bits(base) minus bits(base trained on the text for `steps` steps) on the sealed held-out set, restoring the model afterwards. `steps` comes from `oh_core::teaching_steps`: one pass over the passage, `ceil((bytes - 1) / batch)` steps of `batch` byte pairs (8 for `TinyByteModel`), capped at the run's per-work-unit step count. A 507 byte passage gets 64 steps. `seed` is the first 8 bytes of `text_digest`, so the same text always gets the same score. Accepted when T > epsilon, as for updates. Batches over 1 MiB are rejected. Replays are refused by text digest through the same ledger `mark_seen` record as delta digests, so the same text under a second key earns nothing.
+
+### Why one pass (follow-up F1)
+
+The first runs trained every passage for the run's 500 steps. With 8 byte pairs per step that is about 8 passes over a 500 byte passage, and the second batch overfit in both runs (T = -758.4 and -308.8). Measurement: `crates/oh-coordinator/tests/teaching_steps.rs`, no network. Same setup as `demo-teach.sh` (LICENSE corpus, 10% held-out, dim 32, seed 1, run steps 500, one teaching batch per round through the real `Coordinator`), with three fixed passages of plain English about software licenses (636, 499 and 501 bytes) in the style of the Qwen replies, fed in three orders.
+
+Exploring passes per passage (order 1, 2, 3 = passages 1, 2, 3), Turings per batch:
+
+| Steps per passage | Batch 1 | Batch 2 | Batch 3 |
+|---|---|---|---|
+| fixed 500 (version 0) | +6799.4 | -123.9 | -655.3 |
+| 1 pass | +4920.5 | +2181.8 | +234.0 |
+| 1.5 passes | +6471.3 | +1059.3 | -97.8 |
+| 2 passes | +6905.8 | +443.5 | -325.3 |
+| 3 passes | +7323.9 | +123.8 | -388.8 |
+
+One pass was the only setting where every batch scored positive in all three orders (other orders: +3668.0 +3067.4 +792.2 and +3669.9 +2961.2 +587.4, against +6720.5 -640.2 -45.3 and +7202.8 -938.6 -942.3 with 500 steps). It also leaves the model better off overall: in the first order the held-out bits per byte end at 5.8813 (calc:e9bbaeaa) against 6.0368 (calc:8059ce38) with 500 steps, because the later batches are applied instead of rejected. More passes give the first batch more credit and the later ones less or none, which pays for arriving early rather than for the text.
+
+`test_fixed_steps_overfit_short_passages` pins the old failure and `test_every_batch_of_similar_english_scores_positive_with_scaled_steps` pins the fix. Limits: one seed, one model size, three hand-written passages; real Qwen passages and longer chains are not measured here. The pass count is tied to `TinyByteModel` (its `batch`); a real trainer needs its own measurement.
+
+### Ordering inside a round
 
 Ordering inside a round (`Coordinator::finish_round_with_teaching`):
 
 1. The plain mean of the accepted updates is scored against held-out and applied only if T > 0 (unchanged from version 0). It goes first because the updates were all trained from this round's base, so their mean only makes sense applied to that base.
-2. Then, for each accepted teaching batch in arrival order, the shared model is trained on the text (same steps and seed as when scored) from wherever it now stands. The result is kept only if held-out bits drop; otherwise that text is undone. The round report counts `taught` (accepted) and `taught_applied` (kept).
+2. Then, for each accepted teaching batch in arrival order, the shared model is trained on the text (same `teaching_steps` count and seed as when scored) from wherever it now stands. The result is kept only if held-out bits drop; otherwise that text is undone. The round report counts `taught` (accepted) and `taught_applied` (kept).
 
 A batch's Turings are measured from the round's base, not from the post-aggregate model, so credit does not depend on what other volunteers sent that round.
 

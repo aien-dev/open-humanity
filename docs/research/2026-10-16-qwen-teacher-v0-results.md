@@ -31,8 +31,25 @@ The ignored integration test (`cargo test -p oh-core real_local_qwen -- --ignore
 - Batch 2 was rejected in both runs. After batch 1 the model already knew the basic statistics, and 500 training steps on a single passage of about 500 bytes overfit to that passage, which raised held-out bits. The scoring did its job: the shared model was not changed, and the ledger shows one credit and one rejection per run.
 - Two runs, one seed, two batches each. The pattern repeated, but two samples are not a spread. UNVERIFIED: how teaching compares with training volunteers at equal cost, and whether fewer steps per batch (or longer passages) would turn batch 2 positive.
 
+## After F1: teaching steps scaled to passage length
+
+The coordinator now trains each passage for one pass over it (`oh_core::teaching_steps`: `ceil((bytes - 1) / 8)` steps, capped at the run's step count) instead of the run's 500 steps. Measured without a network in `crates/oh-coordinator/tests/teaching_steps.rs` (same corpus, split, dim, seed and run steps as above; three hand-written passages of 636, 499 and 501 bytes in the style of the Qwen replies; one batch per round through the real coordinator; three orders):
+
+| Order | Steps | Batch 1 T | Batch 2 T | Batch 3 T |
+|---|---|---|---|---|
+| 1, 2, 3 | fixed 500 (before) | +6799.366 | -123.917 | -655.329 |
+| 1, 2, 3 | one pass (after) | +4920.534 | +2181.755 | +233.960 |
+| 3, 1, 2 | fixed 500 (before) | +6720.464 | -640.238 | -45.295 |
+| 3, 1, 2 | one pass (after) | +3668.047 | +3067.363 | +792.190 |
+| 2, 3, 1 | fixed 500 (before) | +7202.845 | -938.601 | -942.333 |
+| 2, 3, 1 | one pass (after) | +3669.925 | +2961.191 | +587.442 |
+
+Before, every second and third batch was rejected; after, every batch is accepted and trained on. Held-out bits per byte in the first order end at 5.8813 (calc:e9bbaeaa) after, against 6.0368 (calc:8059ce38) before. The first batch earns less than before, because it now trains for about 80 steps instead of 500; the credit is spread over the batches that actually taught the model something. The design doc has the full sweep (1, 1.5, 2 and 3 passes).
+
+Not yet rerun against the live Qwen server: it did not answer on 127.0.0.1:18091 when this was measured (2026-10-16). UNVERIFIED for real Qwen passages until `scripts/demo-teach.sh` is run again.
+
 ## Next measurements
 
-- Steps per teaching batch scaled to passage length, to stop small passages overfitting.
+- Rerun `scripts/demo-teach.sh` against the live Qwen server with the one-pass rule, with more batches.
 - Teaching against a model that has already trained for several rounds, to separate "Qwen text helps" from "any English helps a fresh model".
 - Several seeds and more batches, with mean and spread.

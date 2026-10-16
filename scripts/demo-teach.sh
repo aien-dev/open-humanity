@@ -20,6 +20,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TEACHER="${TEACHER:-127.0.0.1:18091}"
 BATCHES="${BATCHES:-2}"
 MAX_TOKENS="${MAX_TOKENS:-256}"
+# Each passage trains for one pass over its bytes, at most STEPS steps.
 STEPS="${STEPS:-500}"
 DIM="${DIM:-32}"
 SEED="${SEED:-1}"

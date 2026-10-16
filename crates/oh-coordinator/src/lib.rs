@@ -236,6 +236,12 @@ impl Coordinator {
         )
     }
 
+    /// Steps to train on one teaching text: one pass over it, at most the
+    /// run's step count (`oh_core::teaching_steps`).
+    fn teaching_steps(&self, text: &[u8]) -> usize {
+        oh_core::teaching_steps(text.len(), self.model.batch, self.steps as usize)
+    }
+
     fn scorer(&self) -> Scorer {
         Scorer {
             base: self.model.params(),
@@ -293,10 +299,11 @@ impl Coordinator {
             return self.reject_teaching(batch, 0.0, "replay of earlier teaching text".into());
         }
         let scorer = self.scorer();
+        let steps = self.teaching_steps(&batch.text);
         let turings = scorer.score_text(
             &mut self.model,
             &batch.text,
-            self.steps as usize,
+            steps,
             teaching_seed(&batch.text_digest),
         );
         if !scorer.accept(turings) {
@@ -374,11 +381,9 @@ impl Coordinator {
         for text in taught {
             let saved = self.model.params();
             let before = self.model.heldout_bits(&self.heldout);
-            self.model.train_steps(
-                text,
-                self.steps as usize,
-                teaching_seed(&oh_core::text_digest(text)),
-            );
+            let steps = self.teaching_steps(text);
+            self.model
+                .train_steps(text, steps, teaching_seed(&oh_core::text_digest(text)));
             let after = self.model.heldout_bits(&self.heldout);
             if (before - after).is_finite() && before - after > 0.0 {
                 taught_applied += 1;

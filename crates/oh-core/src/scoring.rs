@@ -64,6 +64,20 @@ impl Scorer {
     }
 }
 
+/// Training steps for a teaching passage of `text_len` bytes: one pass over
+/// its byte pairs, `ceil((text_len - 1) / batch)` steps of `batch` pairs each,
+/// capped at `max_steps` (the run's per-work-unit step count).
+/// Text shorter than two bytes, or `batch` 0, gets 0 steps.
+///
+/// One pass was chosen by measurement (docs/design/qwen-teacher-v0.md): a
+/// fixed step count trains a short passage many times over and overfits it.
+pub fn teaching_steps(text_len: usize, batch: usize, max_steps: usize) -> usize {
+    if text_len < 2 || batch == 0 {
+        return 0;
+    }
+    (text_len - 1).div_ceil(batch).min(max_steps)
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum LedgerError {
     #[error("ledger i/o error: {0}")]
@@ -382,6 +396,22 @@ mod tests {
         // Empty or one-byte text trains nothing and scores exactly zero.
         assert_eq!(s.score_text(&mut model, b"", 400, 2), 0.0);
         assert_eq!(s.score_text(&mut model, b"a", 400, 2), 0.0);
+    }
+
+    #[test]
+    fn test_teaching_steps_are_one_pass_over_the_passage() {
+        // 507 bytes = 506 pairs, 8 pairs per step: 64 steps (ceil 63.25).
+        assert_eq!(teaching_steps(507, 8, 500), 64);
+        assert_eq!(teaching_steps(9, 8, 500), 1);
+        assert_eq!(teaching_steps(10, 8, 500), 2);
+        // Long passages stop at the run's step count.
+        assert_eq!(teaching_steps(1 << 20, 8, 500), 500);
+        // Nothing to train on.
+        assert_eq!(teaching_steps(0, 8, 500), 0);
+        assert_eq!(teaching_steps(1, 8, 500), 0);
+        assert_eq!(teaching_steps(100, 0, 500), 0);
+        // A run of 0 steps trains teaching text for 0 steps too.
+        assert_eq!(teaching_steps(100, 8, 0), 0);
     }
 
     #[test]
