@@ -38,7 +38,7 @@ Autonomous agents require durable, verifiable memory. Through Spark Cortex (`cor
 When an autonomous agent or an independent operator hits an impasse, the agent transmits an encrypted, signed signal across the peer mesh. Assistance is returned by peer nodes and encrypted exclusively for the requester. No central authority monitors the exchange.
 
 ### 7. The Open Building Covenant
-All software in this ecosystem is published under the Apache License 2.0 with LLVM Exception. The nonbinding COVENANT.md asks everyone who builds on it to keep foundational advances open. The covenant grants and restricts no legal rights; the license governs.
+All software in this ecosystem is published under the GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later). The nonbinding COVENANT.md asks everyone who builds on it to keep foundational advances open. The covenant grants and restricts no legal rights; the license governs.
 
 ---
 
