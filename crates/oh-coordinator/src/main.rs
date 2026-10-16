@@ -3,24 +3,39 @@
 //!
 //! Usage: oh-coordinator --corpus <file> [--listen <addr>] [--rounds <n>]
 //!        [--volunteers-per-round <n>] [--steps <n>] [--heldout-fraction <f>]
-//!        [--seed <n>] [--ledger <path>] [--dim <n>] [--baseline]
+//!        [--seed <n>] [--ledger <path>] [--dim <n>] [--outer-lr <f>]
+//!        [--baseline | --simulate [--keep-fraction <f>] [--no-compression]
+//!        [--no-update-gate] [--shard-order fixed|rotate]]
 //!
 //! `--baseline` trains the same shards for the same total steps in this one
 //! process, with no network, and prints the same held-out measurements.
+//! `--simulate` runs the volunteer protocol (train each shard from the
+//! round's base, compress, score gate, aggregate) in this one process, so
+//! each knob can be changed on its own and runs repeat exactly.
 
-use oh_coordinator::{baseline, Coordinator, Settings, DEFAULT_LISTEN};
+use oh_coordinator::{
+    baseline, simulate, Coordinator, Settings, ShardOrder, SimOptions, DEFAULT_LISTEN,
+    DEFAULT_OUTER_LR,
+};
 use oh_core::Ledger;
 use std::net::TcpListener;
 use std::path::PathBuf;
 use std::process::ExitCode;
+
+enum Mode {
+    Serve,
+    Baseline,
+    Simulate,
+}
 
 struct Args {
     corpus: PathBuf,
     listen: String,
     rounds: u32,
     ledger: PathBuf,
-    baseline: bool,
+    mode: Mode,
     settings: Settings,
+    sim: SimOptions,
 }
 
 fn parse_args() -> Result<Args, String> {
@@ -29,20 +44,37 @@ fn parse_args() -> Result<Args, String> {
         listen: DEFAULT_LISTEN.into(),
         rounds: 3,
         ledger: PathBuf::from("oh-ledger.jsonl"),
-        baseline: false,
+        mode: Mode::Serve,
         settings: Settings {
             volunteers_per_round: 2,
             steps: 200,
             heldout_fraction: 0.1,
             seed: 1,
             dim: 32,
+            outer_lr: DEFAULT_OUTER_LR,
         },
+        sim: SimOptions::default(),
     };
     let mut it = std::env::args().skip(1);
     while let Some(flag) = it.next() {
-        if flag == "--baseline" {
-            args.baseline = true;
-            continue;
+        match flag.as_str() {
+            "--baseline" => {
+                args.mode = Mode::Baseline;
+                continue;
+            }
+            "--simulate" => {
+                args.mode = Mode::Simulate;
+                continue;
+            }
+            "--no-compression" => {
+                args.sim.compress = false;
+                continue;
+            }
+            "--no-update-gate" => {
+                args.sim.update_gate = false;
+                continue;
+            }
+            _ => {}
         }
         let value = it.next().ok_or(format!("{flag} needs a value"))?;
         let bad = || format!("bad value for {flag}: {value}");
@@ -59,6 +91,15 @@ fn parse_args() -> Result<Args, String> {
             "--heldout-fraction" => s.heldout_fraction = value.parse().map_err(|_| bad())?,
             "--seed" => s.seed = value.parse().map_err(|_| bad())?,
             "--dim" => s.dim = value.parse().map_err(|_| bad())?,
+            "--outer-lr" => s.outer_lr = value.parse().map_err(|_| bad())?,
+            "--keep-fraction" => args.sim.keep_fraction = value.parse().map_err(|_| bad())?,
+            "--shard-order" => {
+                args.sim.shard_order = match value.as_str() {
+                    "fixed" => ShardOrder::Fixed,
+                    "rotate" => ShardOrder::Rotate,
+                    _ => return Err(bad()),
+                }
+            }
             _ => return Err(format!("unknown argument {flag}")),
         }
     }
@@ -76,14 +117,47 @@ fn run(args: Args) -> Result<(), String> {
     let corpus = std::fs::read(&args.corpus)
         .map_err(|e| format!("cannot read {}: {e}", args.corpus.display()))?;
 
-    if args.baseline {
-        let bpb = baseline(&corpus, &args.settings, args.rounds)?;
-        println!("baseline start heldout_bpb={:.4}", bpb[0]);
-        for (round, v) in bpb.iter().enumerate().skip(1) {
-            println!("round={round} heldout_bpb={v:.4}");
+    match args.mode {
+        Mode::Baseline => {
+            let bpb = baseline(&corpus, &args.settings, args.rounds)?;
+            println!("baseline start heldout_bpb={:.4}", bpb[0]);
+            for (round, v) in bpb.iter().enumerate().skip(1) {
+                println!("round={round} heldout_bpb={v:.4}");
+            }
+            println!("final_heldout_bpb={:.4}", bpb[bpb.len() - 1]);
+            return Ok(());
         }
-        println!("final_heldout_bpb={:.4}", bpb[bpb.len() - 1]);
-        return Ok(());
+        Mode::Simulate => {
+            let result = simulate(&corpus, &args.settings, args.rounds, &args.sim)?;
+            let sim = &args.sim;
+            println!(
+                "simulate volunteers={} steps={} outer_lr={} keep_fraction={} compress={} update_gate={} shard_order={:?}",
+                args.settings.volunteers_per_round,
+                args.settings.steps,
+                args.settings.outer_lr,
+                sim.keep_fraction,
+                sim.compress,
+                sim.update_gate,
+                sim.shard_order
+            );
+            println!("start heldout_bpb={:.4}", result.start_bpb);
+            let mut accepted = 0;
+            for report in &result.rounds {
+                accepted += report.accepted;
+                println!("{}", report.line());
+            }
+            let last = result
+                .rounds
+                .last()
+                .map_or(result.start_bpb, |r| r.heldout_bpb);
+            println!(
+                "accepted_updates={accepted} of {}",
+                result.rounds.len() * args.settings.volunteers_per_round
+            );
+            println!("final_heldout_bpb={last:.4}");
+            return Ok(());
+        }
+        Mode::Serve => {}
     }
 
     let ledger = Ledger::open(&args.ledger)

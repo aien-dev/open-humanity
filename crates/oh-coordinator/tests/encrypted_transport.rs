@@ -85,6 +85,7 @@ fn test_eavesdropper_sees_no_shard_or_teaching_bytes() {
         heldout_fraction: 0.1,
         seed: 3,
         dim: 8,
+        outer_lr: 1.0,
     };
     let mut coordinator = Coordinator::new(
         LICENSE,

@@ -53,6 +53,7 @@ fn settings() -> Settings {
         heldout_fraction: 0.1,
         seed: 1,
         dim: 32,
+        outer_lr: 1.0,
     }
 }
 

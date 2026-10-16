@@ -11,8 +11,9 @@
 
 use beacon_core::Keypair;
 use oh_core::{
-    apply, coordinator_handshake, recv_submission, send, BaseModel, Learner, Ledger, LedgerError,
-    Receipt, Scorer, Submission, TeachingBatch, TinyByteModel, Update, WorkUnit,
+    apply, coordinator_handshake, pseudo_gradient, recv_submission, send, BaseModel,
+    CompressedDelta, Learner, Ledger, LedgerError, Receipt, Scorer, Submission, TeachingBatch,
+    TinyByteModel, Update, WorkUnit,
 };
 use std::io::{Read, Write};
 use std::net::TcpListener;
@@ -33,6 +34,9 @@ pub const HANDSHAKE_TIMEOUT_SECS: u64 = 30;
 /// Read and write timeout on a connection once the round is under way.
 pub const ROUND_TIMEOUT_SECS: u64 = 600;
 
+/// Outer learning rate when none is given: apply the plain mean.
+pub const DEFAULT_OUTER_LR: f64 = 1.0;
+
 #[derive(Debug, Clone)]
 pub struct Settings {
     pub volunteers_per_round: usize,
@@ -40,6 +44,10 @@ pub struct Settings {
     pub heldout_fraction: f64,
     pub seed: u64,
     pub dim: usize,
+    /// Multiplier on the mean of the accepted updates before it is scored
+    /// and applied (the DiLoCo outer step). 1 applies the plain mean; a
+    /// value equal to the number of volunteers applies their sum.
+    pub outer_lr: f64,
 }
 
 /// One round's result, as logged.
@@ -152,6 +160,12 @@ fn check_settings(train: &[u8], s: &Settings) -> Result<(), String> {
     if train.len() / s.volunteers_per_round < 2 {
         return Err("training part is too small for one shard per volunteer".into());
     }
+    if !(s.outer_lr.is_finite() && s.outer_lr > 0.0) {
+        return Err(format!(
+            "outer learning rate must be a positive number, got {}",
+            s.outer_lr
+        ));
+    }
     Ok(())
 }
 
@@ -164,6 +178,7 @@ pub struct Coordinator {
     heldout: Vec<u8>,
     shards: Vec<Range<usize>>,
     steps: u32,
+    outer_lr: f64,
     round: u32,
     ledger: Ledger,
 }
@@ -188,6 +203,7 @@ impl Coordinator {
             train: train.to_vec(),
             heldout: heldout.to_vec(),
             steps: settings.steps,
+            outer_lr: settings.outer_lr,
             round: 0,
             ledger,
         })
@@ -349,8 +365,9 @@ impl Coordinator {
         Ok(Verdict::Rejected { receipt, reason })
     }
 
-    /// Scores the plain mean of `accepted` and applies it only if it lowers
-    /// held-out bits; otherwise the round is discarded.
+    /// Scores the mean of `accepted` times the outer learning rate and
+    /// applies it only if it lowers held-out bits; otherwise the round is
+    /// discarded.
     pub fn finish_round(&mut self, accepted: &[Vec<f32>]) -> RoundReport {
         self.finish_round_with_teaching(accepted, &[])
     }
@@ -368,17 +385,10 @@ impl Coordinator {
     ) -> RoundReport {
         let mut aggregate_turings = 0.0;
         let mut applied = false;
-        if let Some(first) = accepted.first() {
-            let k = accepted.len() as f32;
-            let mut mean = vec![0f32; first.len()];
-            for delta in accepted {
-                for (m, d) in mean.iter_mut().zip(delta) {
-                    *m += d / k;
-                }
-            }
+        if let Some(mean) = aggregate(accepted, self.outer_lr) {
             let scorer = self.scorer();
             aggregate_turings = scorer.score(&mut self.model, &mean);
-            if aggregate_turings.is_finite() && aggregate_turings > 0.0 {
+            if aggregate_helps(aggregate_turings) {
                 self.model.set_params(&apply(&scorer.base, &mean));
                 applied = true;
             }
@@ -540,11 +550,161 @@ impl Coordinator {
     }
 }
 
+/// The round's aggregate step: the mean of `accepted`, scaled by `outer_lr`.
+/// With `outer_lr` 1 this is the plain mean; `None` when nothing was accepted.
+pub fn aggregate(accepted: &[Vec<f32>], outer_lr: f64) -> Option<Vec<f32>> {
+    let first = accepted.first()?;
+    let k = accepted.len() as f32;
+    let lr = outer_lr as f32;
+    let mut mean = vec![0f32; first.len()];
+    for delta in accepted {
+        for (m, d) in mean.iter_mut().zip(delta) {
+            *m += d * lr / k;
+        }
+    }
+    Some(mean)
+}
+
+/// The aggregate step is applied only when it lowers held-out bits at all.
+fn aggregate_helps(turings: f64) -> bool {
+    turings.is_finite() && turings > 0.0
+}
+
 /// Training seed for one round; the same formula as
 /// `oh_volunteer::train_seed`, repeated here so the binary does not depend
 /// on the volunteer crate.
 fn train_seed(seed: u64, round: u32) -> u64 {
     seed ^ ((round as u64) << 32)
+}
+
+/// Share of parameter changes a volunteer keeps by default; the same value
+/// as `oh_volunteer::DEFAULT_KEEP_FRACTION`.
+pub const DEFAULT_SIM_KEEP_FRACTION: f64 = 0.2;
+
+/// Which volunteer's training seed each shard gets in a simulated round.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ShardOrder {
+    /// Shard `i` always goes to volunteer `i`, as `baseline` assumes.
+    Fixed,
+    /// Shard `i` goes to volunteer `(i + round) % n`: a stand-in for the live
+    /// run, where connection order decides who gets which shard each round.
+    Rotate,
+}
+
+/// Knobs for `simulate`; the defaults reproduce the live v0 protocol.
+#[derive(Debug, Clone)]
+pub struct SimOptions {
+    /// Share of each update's entries kept (top-k by size), as the
+    /// volunteer's `--keep`.
+    pub keep_fraction: f64,
+    /// When false the exact f32 delta is used: no top-k, no 8-bit values.
+    pub compress: bool,
+    /// When false every update goes into the aggregate, even one that does
+    /// not lower held-out bits on its own.
+    pub update_gate: bool,
+    pub shard_order: ShardOrder,
+}
+
+impl Default for SimOptions {
+    fn default() -> Self {
+        Self {
+            keep_fraction: DEFAULT_SIM_KEEP_FRACTION,
+            compress: true,
+            update_gate: true,
+            shard_order: ShardOrder::Fixed,
+        }
+    }
+}
+
+/// Held-out bits per byte before any training, then one report per round.
+#[derive(Debug, Clone)]
+pub struct SimResult {
+    pub start_bpb: f64,
+    pub rounds: Vec<RoundReport>,
+}
+
+/// Single-process copy of the volunteer protocol, for measuring where the
+/// gap to `baseline` comes from with no network and no connection-order
+/// luck. Each round every shard is trained from the round's base model
+/// exactly as `oh_volunteer::train` does (same seeds as `baseline`), the
+/// delta goes through the volunteer's compression and the coordinator's
+/// per-update score gate, and the accepted deltas are aggregated with
+/// `aggregate` and applied only if the aggregate lowers held-out bits,
+/// exactly as `Coordinator::finish_round` does. Signatures, receipts and
+/// the ledger are left out because they do not touch the numbers.
+pub fn simulate(
+    corpus: &[u8],
+    settings: &Settings,
+    rounds: u32,
+    opts: &SimOptions,
+) -> Result<SimResult, String> {
+    let (train, heldout) = split_corpus(corpus, settings.heldout_fraction)?;
+    check_settings(train, settings)?;
+    if opts.compress && !(opts.keep_fraction > 0.0 && opts.keep_fraction <= 1.0) {
+        return Err(format!(
+            "keep fraction must be above 0 and at most 1, got {}",
+            opts.keep_fraction
+        ));
+    }
+    let n = settings.volunteers_per_round;
+    let shards = shard_ranges(train.len(), n);
+    let mut model = TinyByteModel::new(settings.dim, settings.seed);
+    let mut worker = TinyByteModel::new(settings.dim, 0);
+    let bpb = |m: &TinyByteModel| bits_per_byte(m.heldout_bits(heldout), heldout);
+    let start_bpb = bpb(&model);
+    let mut reports = Vec::with_capacity(rounds as usize);
+
+    for round in 1..=rounds {
+        let base = model.params();
+        let scorer = Scorer {
+            base: base.clone(),
+            heldout: heldout.to_vec(),
+            epsilon: EPSILON,
+        };
+        let mut accepted = Vec::new();
+        for (slot, range) in shards.iter().enumerate() {
+            let volunteer = match opts.shard_order {
+                ShardOrder::Fixed => slot,
+                ShardOrder::Rotate => (slot + round as usize) % n,
+            };
+            worker.set_params(&base);
+            worker.train_steps(
+                &train[range.clone()],
+                settings.steps as usize,
+                train_seed(settings.seed + 1 + volunteer as u64, round),
+            );
+            let mut delta = pseudo_gradient(&base, &worker.params());
+            if opts.compress {
+                delta = CompressedDelta::compress(&delta, opts.keep_fraction).decompress();
+            }
+            let turings = scorer.score(&mut model, &delta);
+            if !opts.update_gate || scorer.accept(turings) {
+                accepted.push(delta);
+            }
+        }
+        let mut aggregate_turings = 0.0;
+        let mut applied = false;
+        if let Some(mean) = aggregate(&accepted, settings.outer_lr) {
+            aggregate_turings = scorer.score(&mut model, &mean);
+            if aggregate_helps(aggregate_turings) {
+                model.set_params(&apply(&base, &mean));
+                applied = true;
+            }
+        }
+        reports.push(RoundReport {
+            round,
+            accepted: accepted.len(),
+            aggregate_turings,
+            applied,
+            taught: 0,
+            taught_applied: 0,
+            heldout_bpb: bpb(&model),
+        });
+    }
+    Ok(SimResult {
+        start_bpb,
+        rounds: reports,
+    })
 }
 
 /// Single-process comparison run: one model, started from the same seed,
@@ -589,5 +749,179 @@ mod tests {
     fn test_shards_cover_training_without_overlap() {
         let shards = shard_ranges(10, 3);
         assert_eq!(shards, vec![0..3, 3..6, 6..10]);
+    }
+
+    /// Words drawn at random from a short list: enough structure to learn,
+    /// deterministic for a given seed.
+    fn corpus(n: usize, seed: u64) -> Vec<u8> {
+        let words = [
+            "the",
+            "open",
+            "model",
+            "learns",
+            "from",
+            "signed",
+            "updates",
+            "and",
+            "never",
+            "sees",
+            "data",
+            "volunteers",
+            "train",
+            "at",
+            "home",
+            "scores",
+            "every",
+            "change",
+            "in",
+        ];
+        let mut state = seed;
+        let mut out = Vec::with_capacity(n + 16);
+        while out.len() < n {
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            out.extend_from_slice(words[((state >> 33) % words.len() as u64) as usize].as_bytes());
+            out.push(if (state >> 20).is_multiple_of(9) {
+                b'.'
+            } else {
+                b' '
+            });
+        }
+        out.truncate(n);
+        out
+    }
+
+    fn settings(volunteers: usize, outer_lr: f64) -> Settings {
+        Settings {
+            volunteers_per_round: volunteers,
+            steps: 60,
+            heldout_fraction: 0.1,
+            seed: 5,
+            dim: 16,
+            outer_lr,
+        }
+    }
+
+    fn fresh_ledger(name: &str) -> Ledger {
+        let dir =
+            std::env::temp_dir().join(format!("oh-coordinator-lib-{}-{name}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        Ledger::open(&dir.join("ledger.jsonl")).unwrap()
+    }
+
+    #[test]
+    fn test_aggregate_is_the_mean_times_the_outer_lr() {
+        let deltas = vec![vec![1.0f32, 2.0], vec![3.0, 4.0]];
+        assert_eq!(aggregate(&deltas, 1.0), Some(vec![2.0, 3.0]));
+        assert_eq!(aggregate(&deltas, 2.0), Some(vec![4.0, 6.0]));
+        assert_eq!(aggregate(&[], 1.0), None);
+    }
+
+    #[test]
+    fn test_outer_lr_scales_the_applied_update() {
+        let text = corpus(6000, 4);
+        let (train, heldout) = split_corpus(&text, 0.1).unwrap();
+        let mut plain =
+            Coordinator::new(&text, &settings(3, 1.0), fresh_ledger("outer-plain")).unwrap();
+        let mut triple =
+            Coordinator::new(&text, &settings(3, 3.0), fresh_ledger("outer-triple")).unwrap();
+        let base = plain.begin_round();
+        assert_eq!(base.params, triple.begin_round().params);
+
+        // One small helpful delta, submitted by all three volunteers.
+        let mut worker = TinyByteModel::new(16, 0);
+        worker.set_params(&base.params);
+        worker.train_steps(train, 20, 9);
+        let delta = pseudo_gradient(&base.params, &worker.params());
+        let submitted = vec![delta.clone(); 3];
+
+        let expect = |scale: f32| {
+            let scaled: Vec<f32> = delta.iter().map(|d| d * scale).collect();
+            let mut m = TinyByteModel::new(16, 0);
+            m.set_params(&apply(&base.params, &scaled));
+            bits_per_byte(m.heldout_bits(heldout), heldout)
+        };
+        let plain_report = plain.finish_round(&submitted);
+        let triple_report = triple.finish_round(&submitted);
+        assert!(plain_report.applied && triple_report.applied);
+        assert!((plain_report.heldout_bpb - expect(1.0)).abs() < 1e-9);
+        assert!((triple_report.heldout_bpb - expect(3.0)).abs() < 1e-9);
+        assert!(
+            triple_report.heldout_bpb < plain_report.heldout_bpb,
+            "three times a small helpful step should help more here"
+        );
+    }
+
+    #[test]
+    fn test_simulate_rejects_bad_settings() {
+        let text = corpus(6000, 4);
+        assert!(simulate(&text, &settings(3, 0.0), 1, &SimOptions::default()).is_err());
+        assert!(simulate(&text, &settings(3, f64::NAN), 1, &SimOptions::default()).is_err());
+        let bad_keep = SimOptions {
+            keep_fraction: 0.0,
+            ..SimOptions::default()
+        };
+        assert!(simulate(&text, &settings(3, 1.0), 1, &bad_keep).is_err());
+        // Keep fraction is ignored when compression is off.
+        let exact = SimOptions {
+            compress: false,
+            ..bad_keep
+        };
+        assert!(simulate(&text, &settings(3, 1.0), 1, &exact).is_ok());
+    }
+
+    #[test]
+    fn test_simulate_repeats_exactly_and_one_exact_volunteer_matches_baseline() {
+        let text = corpus(6000, 4);
+        let s = settings(1, 1.0);
+        let exact = SimOptions {
+            compress: false,
+            update_gate: false,
+            ..SimOptions::default()
+        };
+        let a = simulate(&text, &s, 4, &exact).unwrap();
+        let b = simulate(&text, &s, 4, &exact).unwrap();
+        assert_eq!(a.rounds.len(), 4);
+        for (x, y) in a.rounds.iter().zip(&b.rounds) {
+            assert_eq!(x.heldout_bpb, y.heldout_bpb);
+            assert_eq!(x.accepted, 1);
+        }
+        // With one volunteer, no compression and no gate, applying the
+        // delta is the same as training in place, up to f32 rounding of
+        // base + (after - base).
+        let base = baseline(&text, &s, 4).unwrap();
+        assert!((a.start_bpb - base[0]).abs() < 1e-12);
+        for (report, bpb) in a.rounds.iter().zip(&base[1..]) {
+            assert!(
+                (report.heldout_bpb - bpb).abs() < 1e-4,
+                "simulate {} vs baseline {bpb}",
+                report.heldout_bpb
+            );
+        }
+    }
+
+    #[test]
+    fn test_simulate_shard_order_changes_only_which_seed_trains_which_shard() {
+        let text = corpus(6000, 4);
+        let s = settings(3, 1.0);
+        let fixed = simulate(&text, &s, 2, &SimOptions::default()).unwrap();
+        let rotate = simulate(
+            &text,
+            &s,
+            2,
+            &SimOptions {
+                shard_order: ShardOrder::Rotate,
+                ..SimOptions::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(fixed.start_bpb, rotate.start_bpb);
+        // Both are full runs over the same shards; they need not agree
+        // exactly, but neither may make the model worse.
+        for r in fixed.rounds.iter().chain(&rotate.rounds) {
+            assert!(r.heldout_bpb <= fixed.start_bpb);
+        }
     }
 }
