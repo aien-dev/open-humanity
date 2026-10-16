@@ -11,8 +11,8 @@
 
 use beacon_core::Keypair;
 use oh_core::{
-    apply, recv_submission, send, BaseModel, Learner, Ledger, LedgerError, Receipt, Scorer,
-    Submission, TeachingBatch, TinyByteModel, Update, WorkUnit,
+    apply, coordinator_handshake, recv_submission, send, BaseModel, Learner, Ledger, LedgerError,
+    Receipt, Scorer, Submission, TeachingBatch, TinyByteModel, Update, WorkUnit,
 };
 use std::io::{Read, Write};
 use std::net::TcpListener;
@@ -26,6 +26,12 @@ pub const EPSILON: f64 = 1e-3;
 
 /// Largest teaching batch the coordinator will train on, in bytes.
 pub const MAX_TEACHING_TEXT_BYTES: usize = 1024 * 1024;
+
+/// How long a new connection has to finish the transport handshake.
+pub const HANDSHAKE_TIMEOUT_SECS: u64 = 30;
+
+/// Read and write timeout on a connection once the round is under way.
+pub const ROUND_TIMEOUT_SECS: u64 = 600;
 
 #[derive(Debug, Clone)]
 pub struct Settings {
@@ -494,7 +500,10 @@ impl Coordinator {
     }
 
     /// Runs `rounds` rounds on `listener`, waiting each round for one
-    /// connection per shard, and passes each round's report to `log`.
+    /// connection per shard, and passes each round's report to `log`. Every
+    /// connection starts with the encrypted-transport handshake
+    /// (`oh_core::coordinator_handshake`, signed with this run's key); one
+    /// that fails it is closed and not counted.
     pub fn serve(
         &mut self,
         listener: &TcpListener,
@@ -504,15 +513,26 @@ impl Coordinator {
         for _ in 0..rounds {
             let mut conns = Vec::with_capacity(self.shards.len());
             while conns.len() < self.shards.len() {
-                let (stream, _) = listener.accept().map_err(|e| e.to_string())?;
-                let timeout = Some(Duration::from_secs(600));
-                stream
-                    .set_read_timeout(timeout)
-                    .map_err(|e| e.to_string())?;
-                stream
-                    .set_write_timeout(timeout)
-                    .map_err(|e| e.to_string())?;
-                conns.push(stream);
+                let (stream, peer) = listener.accept().map_err(|e| e.to_string())?;
+                let set_timeout = |secs| {
+                    let t = Some(Duration::from_secs(secs));
+                    stream
+                        .set_read_timeout(t)
+                        .and_then(|_| stream.set_write_timeout(t))
+                        .map_err(|e| e.to_string())
+                };
+                set_timeout(HANDSHAKE_TIMEOUT_SECS)?;
+                match coordinator_handshake(stream, &self.keypair) {
+                    Ok(conn) => {
+                        let s = conn.get_ref();
+                        let t = Some(Duration::from_secs(ROUND_TIMEOUT_SECS));
+                        s.set_read_timeout(t)
+                            .and_then(|_| s.set_write_timeout(t))
+                            .map_err(|e| e.to_string())?;
+                        conns.push(conn);
+                    }
+                    Err(e) => eprintln!("connection from {peer}: handshake failed: {e}"),
+                }
             }
             log(&self.run_round(&mut conns)?);
         }

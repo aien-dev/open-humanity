@@ -8,11 +8,13 @@
 pub mod learner;
 pub mod scoring;
 pub mod teacher;
+pub mod transport;
 pub mod update;
 pub mod wire;
 
 pub use learner::*;
 pub use scoring::*;
 pub use teacher::*;
+pub use transport::*;
 pub use update::*;
 pub use wire::*;

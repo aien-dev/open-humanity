@@ -45,6 +45,24 @@ echo "Corpus: LICENSE, $(wc -c < "$CORPUS") bytes, sha256 $(sha256sum "$CORPUS" 
 echo "Settings: rounds=$ROUNDS volunteers=$VOLUNTEERS steps=$STEPS dim=$DIM seeds=\"$SEEDS\""
 echo
 
+# Prints the key from the coordinator's "coordinator key <hex>" line,
+# waiting up to 30 seconds for it to appear in log $1 (process $2).
+wait_for_key() {
+    local tries=0 key=""
+    while [ -z "$key" ]; do
+        key="$(sed -n 's/^coordinator key \([0-9a-f]\{64\}\)$/\1/p' "$1" 2>/dev/null | head -n 1)"
+        if [ -n "$key" ]; then break; fi
+        if ! kill -0 "$2" 2>/dev/null || [ "$tries" -ge 300 ]; then
+            echo "The coordinator did not start:" >&2
+            cat "$1" >&2
+            exit 1
+        fi
+        tries=$((tries + 1))
+        sleep 0.1
+    done
+    echo "$key"
+}
+
 common=(--corpus "$CORPUS" --rounds "$ROUNDS" --volunteers-per-round "$VOLUNTEERS"
         --steps "$STEPS" --dim "$DIM")
 dist_results=()
@@ -56,11 +74,15 @@ for seed in $SEEDS; do
     "$BIN/oh-coordinator" "${common[@]}" --seed "$seed" \
         --listen "127.0.0.1:$port" --ledger "$WORK/ledger-$seed.jsonl" > "$coord_log" 2>&1 &
     coord_pid=$!
+    # Volunteers pin the key the coordinator prints, so the encrypted link
+    # only opens to this coordinator.
+    key="$(wait_for_key "$coord_log" "$coord_pid")"
 
     vol_pids=()
     for i in $(seq 1 "$VOLUNTEERS"); do
         "$BIN/oh-volunteer" --coordinator "127.0.0.1:$port" --rounds "$ROUNDS" \
-            --seed $((seed + i)) > "$WORK/volunteer-$seed-$i.log" 2>&1 &
+            --seed $((seed + i)) --coordinator-key "$key" \
+            > "$WORK/volunteer-$seed-$i.log" 2>&1 &
         vol_pids+=($!)
     done
     for pid in "${vol_pids[@]}"; do wait "$pid"; done

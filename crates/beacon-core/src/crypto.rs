@@ -4,14 +4,14 @@
 //! end-to-end authenticated payload encryption.
 
 use crate::schema::BeaconError;
-use chacha20poly1305::aead::{Aead, KeyInit};
+use chacha20poly1305::aead::{Aead, KeyInit, Payload};
 use chacha20poly1305::{ChaCha20Poly1305, Key, Nonce};
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use rand::rngs::OsRng;
 use rand::RngCore;
 use std::collections::HashSet;
 use uuid::Uuid;
-use x25519_dalek::{PublicKey as X25519PublicKey, StaticSecret};
+use x25519_dalek::{EphemeralSecret, PublicKey as X25519PublicKey, StaticSecret};
 
 pub const MAX_TIMESTAMP_DRIFT_SECS: u64 = 300;
 
@@ -104,6 +104,85 @@ pub fn decrypt_from_peer(
         .map_err(|_| BeaconError::DecryptionFailed)
 }
 
+/// One side of an X25519 key agreement with a one-time secret, for setting
+/// up a session. The secret is used once (`agree` consumes it) and is wiped
+/// when dropped (x25519-dalek zeroizes it).
+pub struct EphemeralKeyAgreement {
+    secret: EphemeralSecret,
+    public: [u8; 32],
+}
+
+impl EphemeralKeyAgreement {
+    pub fn generate() -> Self {
+        let secret = EphemeralSecret::random_from_rng(OsRng);
+        let public = *X25519PublicKey::from(&secret).as_bytes();
+        Self { secret, public }
+    }
+
+    pub fn public_bytes(&self) -> [u8; 32] {
+        self.public
+    }
+
+    /// The X25519 shared secret with `peer_public`. Refuses a peer key that
+    /// gives an all-zero (non-contributory) result, such as a low-order point.
+    pub fn agree(self, peer_public: &[u8; 32]) -> Result<[u8; 32], BeaconError> {
+        let shared = self
+            .secret
+            .diffie_hellman(&X25519PublicKey::from(*peer_public));
+        if !shared.was_contributory() {
+            return Err(BeaconError::KeyAgreementFailed);
+        }
+        Ok(*shared.as_bytes())
+    }
+}
+
+/// ChaCha20-Poly1305 under one fixed key, with the nonce chosen by the
+/// caller. The caller must never use the same nonce twice under one key.
+pub struct SessionCipher(ChaCha20Poly1305);
+
+impl SessionCipher {
+    pub fn new(key: &[u8; 32]) -> Self {
+        Self(ChaCha20Poly1305::new(Key::from_slice(key)))
+    }
+
+    /// Encrypts `plaintext` and binds `aad` (sent in the clear) to it.
+    pub fn seal(
+        &self,
+        nonce: &[u8; 12],
+        aad: &[u8],
+        plaintext: &[u8],
+    ) -> Result<Vec<u8>, BeaconError> {
+        self.0
+            .encrypt(
+                Nonce::from_slice(nonce),
+                Payload {
+                    msg: plaintext,
+                    aad,
+                },
+            )
+            .map_err(|_| BeaconError::Serialization("Encryption failed".into()))
+    }
+
+    /// Decrypts and checks `ciphertext` against `nonce` and `aad`. Any
+    /// change to the ciphertext, nonce or aad fails.
+    pub fn open(
+        &self,
+        nonce: &[u8; 12],
+        aad: &[u8],
+        ciphertext: &[u8],
+    ) -> Result<Vec<u8>, BeaconError> {
+        self.0
+            .decrypt(
+                Nonce::from_slice(nonce),
+                Payload {
+                    msg: ciphertext,
+                    aad,
+                },
+            )
+            .map_err(|_| BeaconError::DecryptionFailed)
+    }
+}
+
 pub fn verify_timestamp_drift(
     timestamp: u64,
     current_time: u64,
@@ -158,5 +237,40 @@ impl ReplayProtector {
 
     pub fn is_empty(&self) -> bool {
         self.seen.is_empty()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ephemeral_agreement_matches_on_both_sides() {
+        let a = EphemeralKeyAgreement::generate();
+        let b = EphemeralKeyAgreement::generate();
+        let (a_pub, b_pub) = (a.public_bytes(), b.public_bytes());
+        assert_eq!(a.agree(&b_pub).unwrap(), b.agree(&a_pub).unwrap());
+    }
+
+    #[test]
+    fn test_ephemeral_agreement_refuses_low_order_point() {
+        let a = EphemeralKeyAgreement::generate();
+        assert!(matches!(
+            a.agree(&[0u8; 32]),
+            Err(BeaconError::KeyAgreementFailed)
+        ));
+    }
+
+    #[test]
+    fn test_session_cipher_round_trip_and_tamper() {
+        let c = SessionCipher::new(&[7u8; 32]);
+        let nonce = [1u8; 12];
+        let sealed = c.seal(&nonce, b"hdr", b"hello").unwrap();
+        assert_eq!(c.open(&nonce, b"hdr", &sealed).unwrap(), b"hello");
+        let mut bad = sealed.clone();
+        bad[0] ^= 1;
+        assert!(c.open(&nonce, b"hdr", &bad).is_err());
+        assert!(c.open(&[2u8; 12], b"hdr", &sealed).is_err());
+        assert!(c.open(&nonce, b"HDR", &sealed).is_err());
     }
 }
