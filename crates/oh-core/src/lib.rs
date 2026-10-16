@@ -1,4 +1,4 @@
-//! Open Humanity volunteer compute, version 0.
+//! Open Humanity volunteer compute, version 0, with teaching mode.
 //!
 //! Volunteers train a shared model locally and return only a signed,
 //! compressed update. The coordinator scores each update in Turings
@@ -7,10 +7,12 @@
 
 pub mod learner;
 pub mod scoring;
+pub mod teacher;
 pub mod update;
 pub mod wire;
 
 pub use learner::*;
 pub use scoring::*;
+pub use teacher::*;
 pub use update::*;
 pub use wire::*;
