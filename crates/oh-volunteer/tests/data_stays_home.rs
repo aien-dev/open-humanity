@@ -199,3 +199,24 @@ fn test_base_model_that_does_not_match_the_unit_is_refused() {
     assert!(matches!(err, VolunteerError::BadBase(_)), "got {err:?}");
     assert!(stream.sent.is_empty());
 }
+
+#[test]
+fn test_base_model_with_absurd_width_is_refused() {
+    let base = BaseModel {
+        dim: u32::MAX,
+        params: vec![0.0; 4],
+    };
+    let unit = WorkUnit::new_signed(
+        &Keypair::generate(),
+        [1; 16],
+        1,
+        base.digest(),
+        random_text(512, 1),
+        10,
+    );
+
+    let mut stream = scripted(&base, &unit);
+    let err = run_once(&mut stream, &Keypair::generate(), &settings()).unwrap_err();
+    assert!(matches!(err, VolunteerError::BadBase(_)), "got {err:?}");
+    assert!(stream.sent.is_empty());
+}

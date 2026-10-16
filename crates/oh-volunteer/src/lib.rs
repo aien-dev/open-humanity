@@ -14,6 +14,10 @@ use std::io::{Read, Write};
 /// Share of parameter changes kept in each update.
 pub const DEFAULT_KEEP_FRACTION: f64 = 0.05;
 
+/// Widest model a volunteer will build. Keeps the parameter count
+/// arithmetic far from overflow for any `dim` a coordinator sends.
+pub const MAX_DIM: u32 = 4096;
+
 pub struct Settings {
     /// Seeds the order in which training samples the shard.
     pub seed: u64,
@@ -92,6 +96,9 @@ pub fn train(
 ) -> Result<Update, VolunteerError> {
     if base.digest() != unit.base_digest {
         return Err(VolunteerError::BadBase("digest differs from base_digest"));
+    }
+    if base.dim == 0 || base.dim > MAX_DIM {
+        return Err(VolunteerError::BadBase("dim is zero or too large"));
     }
     let dim = base.dim as usize;
     if TinyByteModel::num_params(dim) != base.params.len() {
