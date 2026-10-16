@@ -14,8 +14,10 @@ use oh_core::{
 };
 use std::io::{Read, Write};
 
-/// Share of parameter changes kept in each update.
-pub const DEFAULT_KEEP_FRACTION: f64 = 0.05;
+/// Share of parameter changes kept in each update. Raised from 0.05 after
+/// `docs/research/2026-10-16-volunteer-gap.md` measured that keeping 5%
+/// cost 0.18 bits per byte against 20%, for a quarter of the bytes.
+pub const DEFAULT_KEEP_FRACTION: f64 = 0.2;
 
 /// Widest model a volunteer will build. Keeps the parameter count
 /// arithmetic far from overflow for any `dim` a coordinator sends.

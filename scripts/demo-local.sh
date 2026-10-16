@@ -10,6 +10,8 @@
 # Corpus: the repository LICENSE file (fixed text, so runs repeat).
 # Settings can be changed through the environment, for example:
 #   ROUNDS=10 STEPS=500 DIM=32 SEEDS="1 2 3" scripts/demo-local.sh
+# KEEP is the share of each update a volunteer keeps (oh-volunteer --keep);
+# OUTER_LR scales the mean of the accepted updates (oh-coordinator --outer-lr).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -17,6 +19,8 @@ ROUNDS="${ROUNDS:-10}"
 STEPS="${STEPS:-500}"
 DIM="${DIM:-32}"
 SEEDS="${SEEDS:-1 2 3}"
+KEEP="${KEEP:-0.2}"
+OUTER_LR="${OUTER_LR:-1}"
 BASE_PORT="${BASE_PORT:-18100}"
 VOLUNTEERS=3
 
@@ -42,7 +46,7 @@ BIN="$ROOT/target/release"
 
 CORPUS="$ROOT/LICENSE"
 echo "Corpus: LICENSE, $(wc -c < "$CORPUS") bytes, sha256 $(sha256sum "$CORPUS" | cut -c1-16)..."
-echo "Settings: rounds=$ROUNDS volunteers=$VOLUNTEERS steps=$STEPS dim=$DIM seeds=\"$SEEDS\""
+echo "Settings: rounds=$ROUNDS volunteers=$VOLUNTEERS steps=$STEPS dim=$DIM seeds=\"$SEEDS\" keep=$KEEP outer_lr=$OUTER_LR"
 echo
 
 # Prints the key from the coordinator's "coordinator key <hex>" line,
@@ -71,7 +75,7 @@ base_results=()
 for seed in $SEEDS; do
     port=$((BASE_PORT + seed))
     coord_log="$WORK/coordinator-$seed.log"
-    "$BIN/oh-coordinator" "${common[@]}" --seed "$seed" \
+    "$BIN/oh-coordinator" "${common[@]}" --seed "$seed" --outer-lr "$OUTER_LR" \
         --listen "127.0.0.1:$port" --ledger "$WORK/ledger-$seed.jsonl" > "$coord_log" 2>&1 &
     coord_pid=$!
     # Volunteers pin the key the coordinator prints, so the encrypted link
@@ -81,7 +85,7 @@ for seed in $SEEDS; do
     vol_pids=()
     for i in $(seq 1 "$VOLUNTEERS"); do
         "$BIN/oh-volunteer" --coordinator "127.0.0.1:$port" --rounds "$ROUNDS" \
-            --seed $((seed + i)) --coordinator-key "$key" \
+            --seed $((seed + i)) --coordinator-key "$key" --keep "$KEEP" \
             > "$WORK/volunteer-$seed-$i.log" 2>&1 &
         vol_pids+=($!)
     done
