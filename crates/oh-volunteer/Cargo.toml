@@ -1,0 +1,12 @@
+[package]
+name = "oh-volunteer"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+oh-core = { path = "../oh-core" }
+beacon-core = { path = "../beacon-core" }
+thiserror = "1.0"

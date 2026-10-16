@@ -5,6 +5,8 @@ members = [
     "crates/beacon-client",
     "crates/beacon",
     "crates/oh-core",
+    "crates/oh-coordinator",
+    "crates/oh-volunteer",
 ]
 
 [workspace.package]

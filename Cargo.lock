@@ -1094,6 +1094,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "oh-coordinator"
+version = "0.1.0"
+dependencies = [
+ "beacon-core",
+ "blake3",
+ "oh-core",
+ "oh-volunteer",
+]
+
+[[package]]
 name = "oh-core"
 version = "0.1.0"
 dependencies = [
@@ -1102,6 +1112,15 @@ dependencies = [
  "blake3",
  "serde",
  "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "oh-volunteer"
+version = "0.1.0"
+dependencies = [
+ "beacon-core",
+ "oh-core",
  "thiserror",
 ]
 
