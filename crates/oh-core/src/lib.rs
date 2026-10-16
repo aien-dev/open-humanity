@@ -6,9 +6,11 @@
 //! `docs/design/volunteer-compute-v0.md`.
 
 pub mod learner;
+pub mod scoring;
 pub mod update;
 pub mod wire;
 
 pub use learner::*;
+pub use scoring::*;
 pub use update::*;
 pub use wire::*;

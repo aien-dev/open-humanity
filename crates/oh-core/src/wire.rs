@@ -317,8 +317,18 @@ mod tests {
         assert_eq!(up.node_pubkey, node.pubkey_bytes());
         up.verify_for(&wu).unwrap();
 
-        let other = WorkUnit::new_signed(&coordinator, [7; 16], 4, [9; 32], b"shard bytes".to_vec(), 100);
-        assert!(matches!(up.verify_for(&other), Err(WireError::WorkUnitMismatch)));
+        let other = WorkUnit::new_signed(
+            &coordinator,
+            [7; 16],
+            4,
+            [9; 32],
+            b"shard bytes".to_vec(),
+            100,
+        );
+        assert!(matches!(
+            up.verify_for(&other),
+            Err(WireError::WorkUnitMismatch)
+        ));
     }
 
     #[test]
@@ -339,7 +349,10 @@ mod tests {
         let mut forged = up.clone();
         forged.delta.values[0] = 0;
         forged.sign(&node);
-        assert!(matches!(forged.verify(), Err(WireError::DeltaDigestMismatch)));
+        assert!(matches!(
+            forged.verify(),
+            Err(WireError::DeltaDigestMismatch)
+        ));
     }
 
     #[test]
@@ -378,7 +391,10 @@ mod tests {
         send(&mut buf, &wu).unwrap();
         write_frame(&mut buf, b"").unwrap();
         write_frame(&mut buf, b"second").unwrap();
-        assert_eq!(&buf[..4], &((buf.len() - 4 - 4 - 4 - 6) as u32).to_be_bytes());
+        assert_eq!(
+            &buf[..4],
+            &((buf.len() - 4 - 4 - 4 - 6) as u32).to_be_bytes()
+        );
 
         let mut cursor = Cursor::new(buf);
         let back: WorkUnit = recv(&mut cursor).unwrap();
@@ -402,7 +418,10 @@ mod tests {
         ));
 
         let mut cursor = Cursor::new(u32::MAX.to_be_bytes().to_vec());
-        assert!(matches!(read_frame(&mut cursor), Err(WireError::FrameTooLarge(_))));
+        assert!(matches!(
+            read_frame(&mut cursor),
+            Err(WireError::FrameTooLarge(_))
+        ));
     }
 
     #[test]
@@ -410,7 +429,10 @@ mod tests {
         let mut buf = Vec::new();
         write_frame(&mut buf, b"hello").unwrap();
         buf.truncate(buf.len() - 1);
-        assert!(matches!(read_frame(&mut Cursor::new(buf)), Err(WireError::Io(_))));
+        assert!(matches!(
+            read_frame(&mut Cursor::new(buf)),
+            Err(WireError::Io(_))
+        ));
     }
 
     #[test]

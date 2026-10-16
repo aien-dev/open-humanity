@@ -150,7 +150,11 @@ impl Learner for TinyByteModel {
 
     /// Panics if `p` has the wrong length for this model's shape.
     fn set_params(&mut self, p: &[f32]) {
-        assert_eq!(p.len(), self.params.len(), "parameter vector length mismatch");
+        assert_eq!(
+            p.len(),
+            self.params.len(),
+            "parameter vector length mismatch"
+        );
         self.params.copy_from_slice(p);
     }
 
@@ -264,8 +268,14 @@ mod tests {
         model.train_steps(&text, 1500, 11);
         let after = model.heldout_bits(&text) / (text.len() - 1) as f64;
         eprintln!("bits per byte: {before:.3} before, {after:.3} after training");
-        assert!(before > 7.0, "untrained model should be near 8 bits per byte, got {before}");
-        assert!(after < 2.0, "trained model should be well under 2 bits per byte, got {after}");
+        assert!(
+            before > 7.0,
+            "untrained model should be near 8 bits per byte, got {before}"
+        );
+        assert!(
+            after < 2.0,
+            "trained model should be well under 2 bits per byte, got {after}"
+        );
     }
 
     /// Recomputes the forward pass by hand from the flat parameter vector,
@@ -307,7 +317,10 @@ mod tests {
         let expected = -p_y.log2();
 
         let got = model.heldout_bits(&[x as u8, y as u8]);
-        assert!((got - expected).abs() < 1e-6, "got {got}, expected {expected}");
+        assert!(
+            (got - expected).abs() < 1e-6,
+            "got {got}, expected {expected}"
+        );
     }
 
     #[test]

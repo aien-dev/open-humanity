@@ -11,7 +11,11 @@ use serde::{Deserialize, Serialize};
 ///
 /// Panics if the two vectors differ in length.
 pub fn pseudo_gradient(before: &[f32], after: &[f32]) -> Vec<f32> {
-    assert_eq!(before.len(), after.len(), "parameter vector length mismatch");
+    assert_eq!(
+        before.len(),
+        after.len(),
+        "parameter vector length mismatch"
+    );
     after.iter().zip(before).map(|(a, b)| a - b).collect()
 }
 
@@ -112,7 +116,9 @@ impl CompressedDelta {
             return Err(DeltaError::Malformed("indices and values differ in count"));
         }
         if !self.scale.is_finite() || self.scale < 0.0 {
-            return Err(DeltaError::Malformed("scale is not a finite non-negative number"));
+            return Err(DeltaError::Malformed(
+                "scale is not a finite non-negative number",
+            ));
         }
         if !self.indices.windows(2).all(|w| w[0] < w[1]) {
             return Err(DeltaError::Malformed("indices are not strictly increasing"));
@@ -139,7 +145,10 @@ mod tests {
         let before = [1.0f32, 2.0, 3.0];
         let after = [1.5f32, 2.0, 2.0];
         assert_eq!(pseudo_gradient(&before, &after), vec![0.5, 0.0, -1.0]);
-        assert_eq!(apply(&before, &pseudo_gradient(&before, &after)), after.to_vec());
+        assert_eq!(
+            apply(&before, &pseudo_gradient(&before, &after)),
+            after.to_vec()
+        );
     }
 
     #[test]
@@ -149,7 +158,10 @@ mod tests {
         assert_eq!(c.len, 10_000);
         assert_eq!(c.indices.len(), 500);
         assert_eq!(c.values.len(), 500);
-        assert!(c.indices.windows(2).all(|w| w[0] < w[1]), "indices sorted and unique");
+        assert!(
+            c.indices.windows(2).all(|w| w[0] < w[1]),
+            "indices sorted and unique"
+        );
 
         let out = c.decompress();
         assert_eq!(out.len(), 10_000);
