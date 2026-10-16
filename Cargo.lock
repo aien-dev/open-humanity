@@ -1094,6 +1094,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "oh-core"
+version = "0.1.0"
+dependencies = [
+ "beacon-core",
+ "bincode",
+ "blake3",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
