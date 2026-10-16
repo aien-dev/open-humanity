@@ -26,7 +26,7 @@ Every background daemon, process supervisor, memory engine, and API gateway must
 Software built for human autonomy must respect human privacy as an absolute axiom:
 - Zero tracking scripts, analytics SDKs, or covert profiling.
 - The Personal Data Firewall sanitizes file paths and blocks secret keys before any peer interaction.
-- The open network never trains on user queries or builds centralized behavioral databases.
+- The open network never trains on user queries or builds centralized behavioral databases. The shared model learns only from signed volunteer updates and teaching text, and personal data never leaves the volunteer's machine.
 
 ### 4. Zero Plaintext Disk Secrets (Hardware TPM Vault)
 No `.env`, `.env.*`, or plaintext secret files are permitted on disk in project workspaces. All API tokens, private signing keys, and vault entries must reside in hardware silicon via the Trusted Platform Module (`atlas-vault`) and resolve dynamically in memory with automatic stream redaction.

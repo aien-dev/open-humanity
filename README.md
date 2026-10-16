@@ -47,6 +47,7 @@ Not built in version 0 (from the design doc):
 - The DiLoCo outer optimizer. Version 0 combines accepted updates with a plain average.
 - Sybil resistance. One person can run many keys, and could split one update across them.
 - Protection against held-out leakage from repeated scoring. A volunteer who submits many updates and watches the scores could slowly learn about the held-out set.
+- Transport encryption. Frames travel in the clear over TCP, so version 0 is for loopback only. The design doc lists the remaining gaps (coordinator key pinning, stalled volunteers, dropped-update records).
 
 Teaching text (a local model writing text that is scored the same way) is also not built yet.
 

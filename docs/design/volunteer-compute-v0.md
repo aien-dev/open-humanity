@@ -75,3 +75,11 @@ Over TCP, each message travels in a frame: a 4-byte big-endian length, then that
 - The DiLoCo outer optimizer. Version 0 combines accepted updates with a plain average.
 - Sybil resistance. One person can run many keys, and could split one update across them.
 - Protection against held-out leakage from repeated scoring. A volunteer who submits many updates and watches the scores could slowly learn about the held-out set.
+- Transport encryption. Frames travel in the clear over TCP. Version 0 is meant for loopback only; the shard a volunteer receives and the update it returns are readable by anyone on the path.
+- Pinned coordinator identity by default. Unless `--coordinator-key` is given, a volunteer trusts the first coordinator key it sees and holds to it for the rest of its run.
+- Protection against slow or silent volunteers. The coordinator waits for one connection per shard and reads each update with a 10 minute timeout, so one stalled volunteer holds up the round.
+- A ledger line for dropped updates. Updates with a bad signature, or that answer the wrong work unit, get no receipt and no ledger line; they are only logged. Accepted updates get a credit line and every other update that gets a receipt gets a rejected line.
+
+## Open questions
+
+- Why the volunteer runs trail the single-process baseline. At equal total steps the volunteer runs end about 0.33 bits per byte behind (`docs/research/2026-10-16-v0-loopback-results.md`). Likely causes are the plain average of updates trained from the same start and keeping only 5% of each update, but neither has been measured on its own. Next measurement: rerun with `--keep 1.0` (no compression) and with one volunteer, to split the two effects.
