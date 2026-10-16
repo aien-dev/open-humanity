@@ -49,16 +49,16 @@ Not built in version 0 (from the design doc):
 - Protection against held-out leakage from repeated scoring. A volunteer who submits many updates and watches the scores could slowly learn about the held-out set.
 - Transport encryption. Frames travel in the clear over TCP, so version 0 is for loopback only. The design doc lists the remaining gaps (coordinator key pinning, stalled volunteers, dropped-update records).
 
-Teaching text (a local model writing text that is scored the same way) is also not built yet.
+**Teaching mode.** A volunteer who runs an open language model on their own machine can lend that model instead of training: `oh-volunteer teach --coordinator <addr>` asks the local model (by default the chat server at 127.0.0.1:18091; it refuses any teacher that is not on the same machine) to write a short passage on a hint taken from the work unit, runs the passage through the Personal Data Firewall, and sends only the firewalled text, signed. Text that looks like it holds a password, key or token is not sent at all. The coordinator scores the text in Turings the same way as an update (train a copy of the model on it and measure held-out bits) and, if it helps, trains the shared model on it after the round's update step. Design: [docs/design/qwen-teacher-v0.md](docs/design/qwen-teacher-v0.md). First run against a local Qwen3-30B: [docs/research/2026-10-16-qwen-teacher-v0-results.md](docs/research/2026-10-16-qwen-teacher-v0-results.md). Demo: `scripts/demo-teach.sh`.
 
 ## Core Crates
 
 - `beacon-core` (Core Data): Data models and packet formats, Ed25519 signing, X25519 and ChaCha20-Poly1305 encryption helpers, replay and timestamp checks, a cuckoo filter, and the Personal Data Firewall.
 - `beacon-client` (Client Interface): Local SQLite WAL signal store with a 7-day sweep, UDP transport (tested over loopback), and a preflight sandbox that runs a check command in a temporary directory. It builds the `open-humanity` command with three subcommands: `status`, `sweep`, and `test-distress`. The TPM and cuckoo filter lines printed by `status` are fixed text, not live checks.
 - `beacon` (Relay Engine): UDP relay daemon. It listens on `0.0.0.0:18098` by default (set `BEACON_PORT` to change it) and keeps the newest 10,000 well-formed signals in memory. It does not yet forward signals, verify signatures, or expire entries. Throughput has not been measured.
-- `oh-core` (Volunteer Compute Core): The learner interface and the toy `TinyByteModel`, update compression, signed work unit, update and receipt formats with length-prefixed TCP frames, Turing scoring, and the append-only ledger.
-- `oh-coordinator` (Volunteer Compute Coordinator): The `oh-coordinator` command. Listens on `127.0.0.1:18099` by default.
-- `oh-volunteer` (Volunteer Compute Client): The `oh-volunteer` command.
+- `oh-core` (Volunteer Compute Core): The learner interface and the toy `TinyByteModel`, update compression, signed work unit, update and receipt formats with length-prefixed TCP frames, Turing scoring, and the append-only ledger, plus teaching mode: the `Teacher` interface, `LocalHttpTeacher` (a small loopback-only HTTP client for OpenAI-style chat servers), the signed `TeachingBatch` format and text scoring.
+- `oh-coordinator` (Volunteer Compute Coordinator): The `oh-coordinator` command. Listens on `127.0.0.1:18099` by default. Accepts updates and teaching batches on the same port.
+- `oh-volunteer` (Volunteer Compute Client): The `oh-volunteer` command, with a `teach` subcommand that asks a local model for teaching text and sends only the firewalled result.
 
 ## Invariant Discipline
 
