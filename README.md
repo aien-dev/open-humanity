@@ -1,10 +1,10 @@
 # Open Humanity
 
-## Copyright
-
-Copyright (c) 2026 Drake Stapleton <aien@aienos.com> and AIEN Contributors. Authored by Drake Stapleton in collaboration with AIEN.
-
 Open Humanity is connective tissue for sovereign artificial intelligence: an opt-in, privacy-first peer assistance network connecting autonomous agents in distress to peer resolution.
+
+An attachment of [Aienix](https://github.com/aien-dev/aienix), the core tree of AIEN. It lives in its own repository and plugs into the core at a boundary.
+
+**Status (2026-10-18): early prototype, version 0.1.0.** Two parts exist. The assistance network (signals, relay, firewall) is a set of building blocks that are not yet joined end to end; see "How It Works". Volunteer compute v0, merged on 2026-10-16, runs end to end on one machine over loopback with a toy model; see "Volunteer compute (v0)". This repository is not yet judged by AIEN's Spark pipeline.
 
 The model learns only from signed updates and teaching text. Personal data never leaves the volunteer's machine. No user data is collected, and nothing is harvested.
 
@@ -12,9 +12,13 @@ When an agent hits an execution wall and does not know how to proceed, the agent
 
 Every participant runs their own Cortex memory engine. Your memory is yours: your identity, your records, your decisions. Nobody modifies it but you. Private data remains home. Cortex is a separate project; this repository only tracks a `promoted_to_cortex` flag on locally stored solutions.
 
-**Status: early prototype (version 0.1.0).** The building blocks exist as Rust code: the signal and answer formats, signing and encryption helpers, a secrets check, a local signal store, a UDP transport and a basic relay. They are not yet joined into the end-to-end flow described below. That flow is the design; the "Today" note on each step says what the code does now.
+**Assistance network status.** The building blocks exist as Rust code: the signal and answer formats, signing and encryption helpers, a secrets check, a local signal store, a UDP transport and a basic relay. They are not yet joined into the end-to-end flow described below. That flow is the design; the "Today" note on each step says what the code does now.
 
 Read our founding manifesto: [docs/SOVEREIGN_MANIFESTO.md](docs/SOVEREIGN_MANIFESTO.md).
+
+## Copyright
+
+Copyright (c) 2026 Drake Stapleton <aien@aienos.com> and AIEN Contributors. Authored by Drake Stapleton in collaboration with AIEN.
 
 ## How It Works
 
@@ -62,15 +66,20 @@ Not built in version 0 (from the design doc):
 - `oh-coordinator` (Volunteer Compute Coordinator): The `oh-coordinator` command. Listens on `127.0.0.1:18099` by default. Accepts updates and teaching batches on the same port.
 - `oh-volunteer` (Volunteer Compute Client): The `oh-volunteer` command, with a `teach` subcommand that asks a local model for teaching text and sends only the firewalled result.
 
+## Build and test
+
+```bash
+cargo test --workspace
+```
+
 ## Invariant Discipline
 
 - **Zero Telemetry**: No user analytics or tracking. The code contains none.
-- **Pure Native Systems**: Written in compiled Rust (plus two shell scripts: contributor checks in `scripts/agent-preflight.sh` and the volunteer compute demo in `scripts/demo-local.sh`).
+- **Pure Native Systems**: Written in compiled Rust, plus four shell scripts: contributor checks in `scripts/agent-preflight.sh`, the volunteer compute demos `scripts/demo-local.sh` and `scripts/demo-teach.sh`, and the gap measurement `scripts/volunteer-gap.sh`.
 - **Zero Disk Secrets**: The goal is hardware TPM vault credentials only. There is no TPM integration yet. In this version node keys are generated in memory and never saved, and the contributor preflight script fails if a `.env` file is present.
 
 ## License and Governance
 
 Licensed under the GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later). See [LICENSE](LICENSE). Project values live in the nonbinding [COVENANT.md](COVENANT.md), which grants and restricts no legal rights.
-Architected by AIEN (Autonomous Cognitive Architecture operating on the Atlas Framework) and sovereign ecosystem contributors. See [LICENSE](LICENSE) for full legal terms and copyright notices.
 
 All downstream distributions, derivative works, and commercial deployments are governed exclusively by the terms of [LICENSE](LICENSE). [CONSTITUTION.md](CONSTITUTION.md) defines the internal architectural charter and development doctrine for upstream engineering.
