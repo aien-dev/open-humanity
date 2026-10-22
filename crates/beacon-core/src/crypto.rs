@@ -200,11 +200,7 @@ pub fn verify_timestamp_drift(
     current_time: u64,
     max_drift_secs: u64,
 ) -> Result<(), BeaconError> {
-    let diff = if timestamp >= current_time {
-        timestamp - current_time
-    } else {
-        current_time - timestamp
-    };
+    let diff = timestamp.abs_diff(current_time);
     if diff > max_drift_secs {
         return Err(BeaconError::TimestampDrift {
             drift_secs: diff,

@@ -113,9 +113,7 @@ impl CuckooFilter {
             let slot_idx = (rng as usize) % ENTRIES_PER_BUCKET;
             rng = rng.wrapping_mul(6364136223846793005).wrapping_add(1);
 
-            let evicted = self.buckets[idx].slots[slot_idx];
-            self.buckets[idx].slots[slot_idx] = tag;
-            tag = evicted;
+            std::mem::swap(&mut self.buckets[idx].slots[slot_idx], &mut tag);
             idx = Self::secondary_index(idx, tag);
 
             for slot in &mut self.buckets[idx].slots {
