@@ -1,4 +1,4 @@
-use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Error as DeError};
+use serde::{de::Error as DeError, Deserialize, Deserializer, Serialize, Serializer};
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -156,17 +156,23 @@ impl DistressNanobeacon {
                 self.topic as u8
             )));
         }
-        let bytes = bincode::serialize(self)
-            .map_err(|e| BeaconError::Serialization(e.to_string()))?;
+        let bytes =
+            bincode::serialize(self).map_err(|e| BeaconError::Serialization(e.to_string()))?;
         if bytes.len() > MAX_DATAGRAM_SIZE {
-            return Err(BeaconError::DatagramTooLarge(MAX_DATAGRAM_SIZE, bytes.len()));
+            return Err(BeaconError::DatagramTooLarge(
+                MAX_DATAGRAM_SIZE,
+                bytes.len(),
+            ));
         }
         Ok(bytes)
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, BeaconError> {
         if bytes.len() > MAX_DATAGRAM_SIZE {
-            return Err(BeaconError::DatagramTooLarge(MAX_DATAGRAM_SIZE, bytes.len()));
+            return Err(BeaconError::DatagramTooLarge(
+                MAX_DATAGRAM_SIZE,
+                bytes.len(),
+            ));
         }
         if bytes.len() < 3 {
             return Err(BeaconError::Deserialization("Packet too short".into()));
@@ -178,8 +184,8 @@ impl DistressNanobeacon {
             return Err(BeaconError::UnsupportedVersion(bytes[2]));
         }
 
-        let beacon: Self = bincode::deserialize(bytes)
-            .map_err(|e| BeaconError::Deserialization(e.to_string()))?;
+        let beacon: Self =
+            bincode::deserialize(bytes).map_err(|e| BeaconError::Deserialization(e.to_string()))?;
         if beacon.topic.is_retired() {
             return Err(BeaconError::Deserialization(format!(
                 "retired beacon topic {}",

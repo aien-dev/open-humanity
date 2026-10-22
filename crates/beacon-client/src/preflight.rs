@@ -43,7 +43,11 @@ impl PreflightSandbox {
         &self.sandbox_path
     }
 
-    pub fn write_file(&self, relative_path: &str, content: &str) -> Result<PathBuf, PreflightError> {
+    pub fn write_file(
+        &self,
+        relative_path: &str,
+        content: &str,
+    ) -> Result<PathBuf, PreflightError> {
         let target = self.sandbox_path.join(relative_path);
         if let Some(parent) = target.parent() {
             fs::create_dir_all(parent)?;
@@ -52,7 +56,11 @@ impl PreflightSandbox {
         Ok(target)
     }
 
-    pub fn run_check(&self, program: &str, args: &[&str]) -> Result<PreflightReceipt, PreflightError> {
+    pub fn run_check(
+        &self,
+        program: &str,
+        args: &[&str],
+    ) -> Result<PreflightReceipt, PreflightError> {
         let output = Command::new(program)
             .args(args)
             .current_dir(&self.sandbox_path)

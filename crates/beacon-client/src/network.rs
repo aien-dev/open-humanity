@@ -6,8 +6,8 @@
 use beacon_core::schema::{BeaconError, DistressNanobeacon, ResolutionCapsule, MAX_DATAGRAM_SIZE};
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::net::UdpSocket;
 use thiserror::Error;
+use tokio::net::UdpSocket;
 
 #[derive(Error, Debug)]
 pub enum NetworkError {

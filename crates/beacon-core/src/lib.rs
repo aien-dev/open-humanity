@@ -42,7 +42,8 @@ mod tests {
             MAX_DATAGRAM_SIZE
         );
 
-        let decoded = DistressNanobeacon::from_bytes(&bytes).expect("deserialization should succeed");
+        let decoded =
+            DistressNanobeacon::from_bytes(&bytes).expect("deserialization should succeed");
         assert_eq!(decoded.magic, MAGIC_BYTES);
         assert_eq!(decoded.version, PROTOCOL_VERSION);
         assert_eq!(decoded.topic, BeaconTopic::RustCompilation);
@@ -80,7 +81,12 @@ mod tests {
         #[cfg(not(debug_assertions))]
         let max_nanos = 10.0;
 
-        assert!(nanos_per_op < max_nanos, "Cuckoo lookup too slow: {:.2} ns (limit: {:.2} ns)", nanos_per_op, max_nanos);
+        assert!(
+            nanos_per_op < max_nanos,
+            "Cuckoo lookup too slow: {:.2} ns (limit: {:.2} ns)",
+            nanos_per_op,
+            max_nanos
+        );
     }
 
     #[test]
@@ -108,7 +114,10 @@ mod tests {
     fn test_firewall_sanitizes_paths() {
         let dirty = "Failure occurred at /home/testuser/workspace/open-humanity/crates/lib.rs:10";
         let cleaned = PersonalDataFirewall::sanitize_paths(dirty);
-        assert_eq!(cleaned, "Failure occurred at ~/workspace/open-humanity/crates/lib.rs:10");
+        assert_eq!(
+            cleaned,
+            "Failure occurred at ~/workspace/open-humanity/crates/lib.rs:10"
+        );
         assert!(!cleaned.contains("/home/testuser/"));
     }
 
@@ -126,7 +135,10 @@ mod tests {
             Err(FirewallViolation::AnthropicKey(_))
         ));
 
-        let gh_pat = format!("token = \"{}{}\"", "ghp_", "123456789012345678901234567890123456");
+        let gh_pat = format!(
+            "token = \"{}{}\"",
+            "ghp_", "123456789012345678901234567890123456"
+        );
         let gh_oauth = "token = \"gho_abcdef12345678901234567890123456789012\"";
         assert!(matches!(
             PersonalDataFirewall::verify_clean(&gh_pat),
@@ -150,9 +162,15 @@ mod tests {
         ));
 
         let stripe_prefix = format!("{}_{}", "sk", "live");
-        let stripe_live = format!("STRIPE_KEY={}_51Abcd1234567890abcdef1234567890", stripe_prefix);
+        let stripe_live = format!(
+            "STRIPE_KEY={}_51Abcd1234567890abcdef1234567890",
+            stripe_prefix
+        );
         let stripe_rk_prefix = format!("{}_{}", "rk", "live");
-        let stripe_rk = format!("RESTRICTED_KEY={}_51Abcd1234567890abcdef1234567890", stripe_rk_prefix);
+        let stripe_rk = format!(
+            "RESTRICTED_KEY={}_51Abcd1234567890abcdef1234567890",
+            stripe_rk_prefix
+        );
         assert!(matches!(
             PersonalDataFirewall::verify_clean(&stripe_live),
             Err(FirewallViolation::StripeKey(_))
@@ -196,11 +214,17 @@ mod tests {
     fn test_firewall_filesystem_path_sanitization_all_platforms() {
         let linux_path = "/home/testuser/workspace/open-humanity/target/debug/lib.rs";
         let cleaned_linux = PersonalDataFirewall::sanitize_paths(linux_path);
-        assert_eq!(cleaned_linux, "~/workspace/open-humanity/target/debug/lib.rs");
+        assert_eq!(
+            cleaned_linux,
+            "~/workspace/open-humanity/target/debug/lib.rs"
+        );
 
         let macos_path = "/Users/testuser/Library/Application Support/OpenHumanity/config.json";
         let cleaned_macos = PersonalDataFirewall::sanitize_paths(macos_path);
-        assert_eq!(cleaned_macos, "~/Library/Application Support/OpenHumanity/config.json");
+        assert_eq!(
+            cleaned_macos,
+            "~/Library/Application Support/OpenHumanity/config.json"
+        );
 
         let win_path = "C:\\Users\\testuser\\AppData\\Local\\OpenHumanity\\vault.key";
         let cleaned_win = PersonalDataFirewall::sanitize_paths(win_path);
@@ -245,15 +269,16 @@ mod tests {
         let recipient_pubkey = *X25519PublicKey::from(&recipient_secret).as_bytes();
 
         let message = b"fn solve() { println!(\"Fix applied\"); }";
-        let encrypted = encrypt_to_peer(&recipient_pubkey, message)
-            .expect("encryption should succeed");
+        let encrypted =
+            encrypt_to_peer(&recipient_pubkey, message).expect("encryption should succeed");
 
         let decrypted = decrypt_from_peer(
             &recipient_secret,
             &encrypted.ephemeral_pubkey,
             &encrypted.nonce,
             &encrypted.ciphertext,
-        ).expect("decryption should succeed");
+        )
+        .expect("decryption should succeed");
 
         assert_eq!(decrypted, message);
     }
@@ -276,9 +301,14 @@ mod tests {
                 &encrypted.ephemeral_pubkey,
                 &encrypted.nonce,
                 &encrypted.ciphertext,
-            ).expect("decryption of random payload should succeed");
+            )
+            .expect("decryption of random payload should succeed");
 
-            assert_eq!(decrypted, message, "Payload roundtrip failed for size {}", size);
+            assert_eq!(
+                decrypted, message,
+                "Payload roundtrip failed for size {}",
+                size
+            );
         }
     }
 
@@ -288,8 +318,8 @@ mod tests {
         let recipient_pubkey = *X25519PublicKey::from(&recipient_secret).as_bytes();
         let message = b"Confidential diagnosis payload for peer review";
 
-        let encrypted = encrypt_to_peer(&recipient_pubkey, message)
-            .expect("encryption should succeed");
+        let encrypted =
+            encrypt_to_peer(&recipient_pubkey, message).expect("encryption should succeed");
 
         for byte_idx in 0..encrypted.ciphertext.len() {
             for bit in 0..8 {
@@ -319,8 +349,8 @@ mod tests {
         let recipient_pubkey = *X25519PublicKey::from(&recipient_secret).as_bytes();
         let message = b"Authenticated payload integrity test";
 
-        let encrypted = encrypt_to_peer(&recipient_pubkey, message)
-            .expect("encryption should succeed");
+        let encrypted =
+            encrypt_to_peer(&recipient_pubkey, message).expect("encryption should succeed");
 
         let tag_start = encrypted.ciphertext.len().saturating_sub(16);
         for tag_idx in tag_start..encrypted.ciphertext.len() {
@@ -350,8 +380,8 @@ mod tests {
         let recipient_b_secret = StaticSecret::random_from_rng(OsRng);
 
         let message = b"Targeted payload for recipient A";
-        let encrypted = encrypt_to_peer(&recipient_a_pubkey, message)
-            .expect("encryption should succeed");
+        let encrypted =
+            encrypt_to_peer(&recipient_a_pubkey, message).expect("encryption should succeed");
 
         let result = decrypt_from_peer(
             &recipient_b_secret,
@@ -397,12 +427,18 @@ mod tests {
 
         assert!(matches!(
             verify_timestamp_drift(base_time + 301, base_time, max_drift),
-            Err(BeaconError::TimestampDrift { drift_secs: 301, max_allowed: 300 })
+            Err(BeaconError::TimestampDrift {
+                drift_secs: 301,
+                max_allowed: 300
+            })
         ));
 
         assert!(matches!(
             verify_timestamp_drift(base_time - 500, base_time, max_drift),
-            Err(BeaconError::TimestampDrift { drift_secs: 500, max_allowed: 300 })
+            Err(BeaconError::TimestampDrift {
+                drift_secs: 500,
+                max_allowed: 300
+            })
         ));
     }
 

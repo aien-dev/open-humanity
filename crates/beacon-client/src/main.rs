@@ -15,7 +15,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("=== Open Humanity Node Status ===");
             let storage = BeaconStorage::open_default()?;
             let swept = storage.sweep_expired(DEFAULT_TTL_SECONDS)?;
-            println!("[+] Local SQLite storage active (~/.local/share/open-humanity/beacon.sqlite)");
+            println!(
+                "[+] Local SQLite storage active (~/.local/share/open-humanity/beacon.sqlite)"
+            );
             println!("[+] Swept {} expired beacons (> 7 days TTL)", swept);
             println!("[+] Hardware TPM vault / ed25519 identity active");
             println!("[+] 0-RTT Datagram MTU limit: 1,200 bytes");

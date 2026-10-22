@@ -141,15 +141,33 @@ impl PersonalDataFirewall {
 
     pub fn redact_secrets(text: &str) -> String {
         let mut s = text.to_string();
-        s = PRIVATE_KEY_REGEX.replace_all(&s, "[REDACTED_PRIVATE_KEY]").to_string();
-        s = AWS_KEY_REGEX.replace_all(&s, "[REDACTED_AWS_KEY]").to_string();
-        s = GITHUB_TOKEN_REGEX.replace_all(&s, "[REDACTED_GITHUB_TOKEN]").to_string();
-        s = ANTHROPIC_KEY_REGEX.replace_all(&s, "[REDACTED_ANTHROPIC_KEY]").to_string();
-        s = OPENAI_KEY_REGEX.replace_all(&s, "[REDACTED_OPENAI_KEY]").to_string();
-        s = GOOGLE_KEY_REGEX.replace_all(&s, "[REDACTED_GOOGLE_KEY]").to_string();
-        s = STRIPE_KEY_REGEX.replace_all(&s, "[REDACTED_STRIPE_KEY]").to_string();
-        s = HUGGINGFACE_TOKEN_REGEX.replace_all(&s, "[REDACTED_HF_TOKEN]").to_string();
-        s = GENERIC_SECRET_REGEX.replace_all(&s, "[REDACTED_GENERIC_SECRET]").to_string();
+        s = PRIVATE_KEY_REGEX
+            .replace_all(&s, "[REDACTED_PRIVATE_KEY]")
+            .to_string();
+        s = AWS_KEY_REGEX
+            .replace_all(&s, "[REDACTED_AWS_KEY]")
+            .to_string();
+        s = GITHUB_TOKEN_REGEX
+            .replace_all(&s, "[REDACTED_GITHUB_TOKEN]")
+            .to_string();
+        s = ANTHROPIC_KEY_REGEX
+            .replace_all(&s, "[REDACTED_ANTHROPIC_KEY]")
+            .to_string();
+        s = OPENAI_KEY_REGEX
+            .replace_all(&s, "[REDACTED_OPENAI_KEY]")
+            .to_string();
+        s = GOOGLE_KEY_REGEX
+            .replace_all(&s, "[REDACTED_GOOGLE_KEY]")
+            .to_string();
+        s = STRIPE_KEY_REGEX
+            .replace_all(&s, "[REDACTED_STRIPE_KEY]")
+            .to_string();
+        s = HUGGINGFACE_TOKEN_REGEX
+            .replace_all(&s, "[REDACTED_HF_TOKEN]")
+            .to_string();
+        s = GENERIC_SECRET_REGEX
+            .replace_all(&s, "[REDACTED_GENERIC_SECRET]")
+            .to_string();
         s
     }
 

@@ -56,8 +56,8 @@ pub fn verify_signature(
     message: &[u8],
     signature: &[u8; 64],
 ) -> Result<(), BeaconError> {
-    let verifying_key = VerifyingKey::from_bytes(pubkey)
-        .map_err(|_| BeaconError::SignatureVerificationFailed)?;
+    let verifying_key =
+        VerifyingKey::from_bytes(pubkey).map_err(|_| BeaconError::SignatureVerificationFailed)?;
     let sig = Signature::from_bytes(signature);
     verifying_key
         .verify(message, &sig)

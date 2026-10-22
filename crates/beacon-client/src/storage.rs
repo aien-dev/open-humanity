@@ -184,12 +184,7 @@ impl BeaconStorage {
             "INSERT OR REPLACE INTO solved_cache (
                 fingerprint_hash, topic, solution_patch, verified_at, promoted_to_cortex
             ) VALUES (?1, ?2, ?3, ?4, 0)",
-            params![
-                &fingerprint_hash[..],
-                topic as u8,
-                patch,
-                now,
-            ],
+            params![&fingerprint_hash[..], topic as u8, patch, now,],
         )?;
         Ok(())
     }
