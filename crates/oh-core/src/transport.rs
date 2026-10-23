@@ -237,7 +237,8 @@ pub struct EncryptedStream<S> {
     read_buf: Vec<u8>,
     read_pos: usize,
     peer_identity: [u8; 32],
-    /// Set after a record fails to open; every later read fails.
+    /// Fatal record, counter or I/O failure terminates both directions.
+    /// Interrupted operations are retried; clean read EOF permits writes.
     broken: bool,
 }
 
@@ -281,6 +282,9 @@ impl<S: Read> EncryptedStream<S> {
     /// Reads and opens the next record. `Ok(false)` on a clean end of stream
     /// between records.
     fn fill(&mut self) -> io::Result<bool> {
+        if self.recv_counter == u64::MAX {
+            return Err(io::Error::other("record counter exhausted"));
+        }
         let mut header = [0u8; 4];
         let mut got = 0;
         while got < 4 {
@@ -329,12 +333,17 @@ impl<S: Read> Read for EncryptedStream<S> {
         if buf.is_empty() {
             return Ok(0);
         }
+        if self.broken {
+            return Err(invalid("encrypted stream is terminal"));
+        }
         while self.read_pos == self.read_buf.len() {
-            if self.broken {
-                return Err(invalid("encrypted stream is closed after a bad record"));
-            }
-            if !self.fill()? {
-                return Ok(0);
+            match self.fill() {
+                Ok(false) => return Ok(0),
+                Ok(true) => {}
+                Err(e) => {
+                    self.broken = true;
+                    return Err(e);
+                }
             }
         }
         let n = buf.len().min(self.read_buf.len() - self.read_pos);
@@ -363,6 +372,12 @@ impl<S: Write> EncryptedStream<S> {
 
 impl<S: Write> Write for EncryptedStream<S> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        if buf.is_empty() {
+            return Ok(0);
+        }
+        if self.broken {
+            return Err(invalid("encrypted stream is terminal"));
+        }
         self.write_buf.extend_from_slice(buf);
         Ok(buf.len())
     }
@@ -371,11 +386,26 @@ impl<S: Write> Write for EncryptedStream<S> {
     /// to size buckets, in records of at most `MAX_RECORD_DATA` bytes of
     /// data each.
     fn flush(&mut self) -> io::Result<()> {
+        if self.broken {
+            return Err(invalid("encrypted stream is terminal"));
+        }
         let pending = std::mem::take(&mut self.write_buf);
         for chunk in pending.chunks(MAX_RECORD_DATA) {
-            self.seal_record(&pad(chunk))?;
+            if let Err(e) = self.seal_record(&pad(chunk)) {
+                self.broken = true;
+                return Err(e);
+            }
         }
-        self.inner.flush()
+        loop {
+            match self.inner.flush() {
+                Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
+                Err(e) => {
+                    self.broken = true;
+                    return Err(e);
+                }
+                Ok(()) => return Ok(()),
+            }
+        }
     }
 }
 
@@ -670,3 +700,7 @@ mod tests {
         ));
     }
 }
+
+#[cfg(test)]
+#[path = "transport_lifecycle_tests.rs"]
+mod lifecycle_tests;
