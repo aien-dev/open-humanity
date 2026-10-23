@@ -56,8 +56,8 @@ pub fn verify_signature(
     message: &[u8],
     signature: &[u8; 64],
 ) -> Result<(), BeaconError> {
-    let verifying_key = VerifyingKey::from_bytes(pubkey)
-        .map_err(|_| BeaconError::SignatureVerificationFailed)?;
+    let verifying_key =
+        VerifyingKey::from_bytes(pubkey).map_err(|_| BeaconError::SignatureVerificationFailed)?;
     let sig = Signature::from_bytes(signature);
     verifying_key
         .verify(message, &sig)
@@ -80,6 +80,9 @@ pub fn encrypt_to_peer(
     let peer_public = X25519PublicKey::from(*peer_x25519_pubkey);
     let shared_secret = ephemeral_secret.diffie_hellman(&peer_public);
 
+    if !shared_secret.was_contributory() {
+        return Err(BeaconError::KeyAgreementFailed);
+    }
     let key = Key::from_slice(shared_secret.as_bytes());
     let cipher = ChaCha20Poly1305::new(key);
 
@@ -107,6 +110,9 @@ pub fn decrypt_from_peer(
     let sender_public = X25519PublicKey::from(*sender_ephemeral_pubkey);
     let shared_secret = my_x25519_secret.diffie_hellman(&sender_public);
 
+    if !shared_secret.was_contributory() {
+        return Err(BeaconError::KeyAgreementFailed);
+    }
     let key = Key::from_slice(shared_secret.as_bytes());
     let cipher = ChaCha20Poly1305::new(key);
     let nonce = Nonce::from_slice(nonce);
@@ -214,6 +220,8 @@ pub fn verify_timestamp_drift(
     Ok(())
 }
 
+/// Bounded per-session history. Full capacity refuses new IDs without eviction.
+/// Restart/new instances require an authenticated higher-level freshness rule.
 #[derive(Debug, Clone)]
 pub struct ReplayProtector {
     seen: HashSet<Uuid>,
@@ -233,7 +241,7 @@ impl ReplayProtector {
             return Err(BeaconError::ReplayDetected(*packet_id));
         }
         if self.seen.len() >= self.max_capacity {
-            self.seen.clear();
+            return Err(BeaconError::ReplayCapacityExceeded(self.max_capacity));
         }
         self.seen.insert(*packet_id);
         Ok(())
@@ -298,3 +306,7 @@ mod tests {
         assert!(c.open(&nonce, b"HDR", &sealed).is_err());
     }
 }
+
+#[cfg(test)]
+#[path = "crypto_hardening_tests.rs"]
+mod hardening_tests;
