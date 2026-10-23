@@ -1,4 +1,5 @@
 use super::*;
+include!("crypto_reuse_primitive_tests.rs");
 
 #[test]
 fn replay_capacity_retains_history() {
