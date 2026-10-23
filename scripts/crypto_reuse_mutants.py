@@ -9,6 +9,7 @@ checks=[
 ('replay-clear',crypto,'return Err(BeaconError::ReplayCapacityExceeded(self.max_capacity));','self.seen.clear();','beacon-core','crypto::hardening_tests::replay_capacity_retains_history','capacity must refuse'),
 ('encrypt-unchecked',crypto,'    if !shared_secret.was_contributory() {\n        return Err(BeaconError::KeyAgreementFailed);\n    }\n','', 'beacon-core','crypto::hardening_tests::peer_encrypt_refuses_noncontributory','encrypt must reject'),
 ('decrypt-unchecked',crypto,'    if !shared_secret.was_contributory() {\n        return Err(BeaconError::KeyAgreementFailed);\n    }\n','', 'beacon-core','crypto::hardening_tests::peer_decrypt_refuses_predictable_zero_key_forgery','decrypt must reject'),
+('send-wrap',transport,'        if self.send_counter == u64::MAX {','        if false {','oh-core','transport::lifecycle_tests::counters_stop_before_wrap_without_io','send exhaustion must refuse'),
 ('recv-exhaustion',transport,'        if self.recv_counter == u64::MAX {\n            return Err(io::Error::other("record counter exhausted"));\n        }\n','', 'oh-core','transport::lifecycle_tests::counters_stop_before_wrap_without_io','exhaustion must be refused'),
 ('session-unbound',transport,'    material.extend_from_slice(transcript.finalize().as_bytes());','    let _ = transcript.finalize();','oh-core','transport::lifecycle_tests::transcript_binding_with_persistent_identity_and_fixed_shared_secret','fresh transcript must bind'),
 ('read-resume',transport,'                    self.broken = true;\n                    return Err(e);','                    return Err(e);','oh-core','transport::lifecycle_tests::terminal_partial_reads_and_eof','terminal read must refuse'),
@@ -30,6 +31,8 @@ try:
   else:
    if old not in text:raise RuntimeError('mutation not matched: '+name)
    text=text.replace(old,new,1)
+  if name=='send-wrap':
+   text=text.replace('self.send_counter += 1;', 'self.send_counter = self.send_counter.wrapping_add(1);',1)
   p.write_text(text)
   build=command(['cargo','test','--locked','-p',package,'--lib','--no-run','--message-format=json'],name+'-build')
   status='INVALID'; observed='compile/timeout failure';rc=None

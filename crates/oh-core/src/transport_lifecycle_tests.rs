@@ -148,7 +148,10 @@ fn counters_stop_before_wrap_without_io() {
     send.flush().unwrap();
     assert_eq!(send.send_counter, u64::MAX);
     send.write_all(b"last").unwrap();
-    assert!(send.flush().is_err());
+    assert!(
+        send.flush().is_err(),
+        "send exhaustion must refuse before nonce wrap"
+    );
     assert_eq!(send.send_counter, u64::MAX);
     assert_terminal(&mut send);
     let mut recv = stream(Scripted {
