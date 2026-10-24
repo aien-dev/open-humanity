@@ -1,0 +1,16 @@
+[package]
+name = "oh-share"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+beacon-core = { path = "../beacon-core" }
+bincode = "1.3"
+blake3 = "1.5"
+rand = "0.8"
+serde = { version = "1.0", features = ["derive"] }
+thiserror = "1.0"
+x25519-dalek = { version = "2.0", features = ["static_secrets"] }
