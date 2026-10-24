@@ -37,5 +37,5 @@ Every filter states what it could not see. A pass is not proof of absence. Trunc
 
 ## License
 
-GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later). See LICENSE.
+Apache License, Version 2.0 (Apache-2.0). See LICENSE.
 Copyright (c) 2026 Drake Stapleton <aien@aienos.com> & AIEN <aien@aienos.com>.

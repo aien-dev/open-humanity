@@ -18,7 +18,7 @@ Volunteer compute changes the first half of that promise. The new promise is:
 
 Drake approved this direction in writing on 2026-10-16: "implement the Open Humanity idea: start from the beginning, go all the way through". He gave that approval after these decisions:
 
-1. Code and model are licensed AGPL-3.0-or-later.
+1. Code is licensed Apache-2.0 (superseding the AGPL-3.0-or-later decision of 2026-10-15). Model weights follow the license shipped with them.
 2. No Python and no CUDA: pure Rust, and CPU is fine for version 0.
 3. Volunteers train locally and send back only a compressed update. Each update is scored in Turings (defined below). An update scoring zero or less is rejected. The score is credited to the volunteer.
 4. Personal data never leaves the volunteer's machine.
