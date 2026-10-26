@@ -13,7 +13,7 @@ Allen on aienos.com runs on Drake's own Spark, which answers at most two public 
 1. Opt in twice.
    - The Spark owner opts in through a separate, default-off step in the SI wizard. It states what runs, when, how much power, GPU and network it uses, how to pause or quit, and that the Spark will process strangers' chat text. The wording is under "Disclosure text".
    - The visitor opts in too. A chat goes to a volunteer only if the visitor ticked "Let a volunteer's Spark answer me when Drake's is busy". The box is off by default and is shown only in anonymous chat. Remember-me memory and contact data never go to volunteers. A volunteer receives only Allen's public system prompt and the anonymous conversation text needed for that reply. Nothing about the visitor is added, but whatever the visitor typed is included as typed: the coordinator does not scrub conversation text.
-2. The volunteer node is outbound only. It connects to Drake's coordinator on the hub, over TLS through nginx, and opens no listening socket. It is identified by an Ed25519 key registered at opt-in. It runs the SI engine with the pinned model weights, and checks every weight file against the pinned manifest before it can serve.
+2. The volunteer node is outbound only. It connects to Drake's coordinator on the hub, over TLS through nginx, and opens no listening socket. It is identified by an Ed25519 key registered at opt-in. It runs the same model and engine build as Drake's Spark (see "Pinned model and engine"), and checks every weight file against the pinned manifest before it can serve.
 3. The coordinator, on Drake's side, routes overflow to healthy volunteers, streams their tokens through the Allen gateway and caps each volunteer's load. Integrity rests on four checks:
    - a model-hash attestation in every session;
    - sampled re-verification: a sample of volunteer replies is replayed on Drake's engine with the same greedy decoding, and a reply that differs suspends the volunteer;
@@ -76,9 +76,17 @@ Volunteer to coordinator (`VolMsg`):
 
 `model_digest` is the SHA-256 of the SI `model.manifest` bytes: header lines `name`, `url`, `bytes` and `files`, then one `sha256 size path` line per file. Pinning the manifest digest pins every file's hash and size. Before connecting, `oh-infer-volunteer run` hashes every file under `--model-dir` and refuses to start if any file differs (exit 5). The coordinator refuses an attestation whose digest or model id is not the pinned one. If it was given `--engine-digest`, it also refuses an engine binary digest that differs.
 
+### Pinned model and engine
+
+Drake decided on 2026-10-26 that volunteers run the 35B: the same model and engine build that Drake's Spark serves on 18091. The 27B is not offered for now.
+
+- **Model:** `Qwen/Qwen3.6-35B-A3B-FP8` at revision `95a723d08a9490559dae23d0cff1d9466213d989`, model id `qwen3.6-35b-a3b-fp8-95a723d0`. The manifest has 56 files and 37,493,015,668 bytes, with `download.log` excluded. Its pinned digest is the SHA-256 of the manifest the SI prerelease ships, built by AlphaInstaller from the same folder Drake's Spark serves. A cross-check manifest built independently from that folder hashes to `cfdc1f53a65e4b8b9b6fc87667af7c1e528b71597a766d1f7664d5a40e0064a1`.
+- **Engine:** the `aien-serve-http` build 18091 runs, sha256 `19173f9ec3b609fe79af644f84741d8808b92ea8eb3ecec4bc945af6f22b3aeb` (`bin-19173f9e`). The coordinator pins it with `--engine-digest`, and the volunteer attests it with `--engine-bin`.
+- **Serve flags:** the same as 18091: `--engine omega --max-context 49152 --max-tokens-cap 16384 --thinking off --batch-slots 8`, on the volunteer's own port 18100. Replay cannot attest flags; it catches a difference that changes the text.
+
 ### Decoding
 
-Every job uses greedy decoding (`temperature 0`, `top_p 1`, `seed 0`). A volunteer cannot tell a sampled job from any other.
+Every job and every replay uses the same request: greedy decoding (`temperature 0`, `top_p 1`, `seed 0`), the same messages and the same `max_tokens`. Volunteer and reference run the same engine build and serve flags. A volunteer cannot tell a sampled job from any other.
 
 ## Integrity
 
@@ -92,7 +100,7 @@ Every job uses greedy decoding (`temperature 0`, `top_p 1`, `seed 0`). A volunte
 What this does not stop:
 
 - A malicious volunteer can return bad, false or offensive text on a reply that is not sampled. With the 0.1 steady-state rate, most replies are never checked. Detection happens after the visitor already saw the reply.
-- Exact-match replay assumes the same weights on the same engine give the same greedy text. Different batching on GPU can in principle change a near-tie token. A divergence therefore suspends the volunteer for review rather than banning it, and the operator decides.
+- Exact-match replay assumes the same weights on the same engine build with the same flags give the same greedy text. Both engines run with `--batch-slots 8`, and which other requests share a batch can in principle change a near-tie token. A divergence therefore suspends the volunteer for review rather than banning it, and the operator decides.
 - Approved keys identify machines, not people. There is no Sybil resistance beyond Drake approving each key.
 - Visitors' chat text is processed on the volunteer's machine. The protocol keeps the volunteer from receiving more than that text. It cannot stop a modified volunteer from storing the text it does receive.
 
@@ -129,7 +137,7 @@ What this does not stop:
 
 ## Before routing goes on
 
-- **The shared model (blocker, Drake's decision).** SI alpha-20261026.1 pins `Qwen/Qwen3.8-27B-FP8` revision `017b9c7a`. Drake's Spark serves Qwen3.6-35B on 18091. Replay compares volunteer replies with Drake's engine, so both must run the same pinned weights. Otherwise every sampled reply diverges and every volunteer is suspended. Either SI ships the model Drake serves, or Drake's reference engine runs the SI pin. Until one of those is true, `--routing` stays `off` and so does the gateway flag.
+- **The shared model (decided).** Drake chose the 35B on 2026-10-26: volunteers run `Qwen3.6-35B-A3B-FP8` at revision `95a723d0` on the engine build 18091 runs (see "Pinned model and engine"). The coordinator's `--model-digest` takes the sha256 of the manifest the SI prerelease ships, and its `--engine-digest` takes the shipped engine's sha256. Both must equal what 18091 serves before routing can go on.
 - **Replay wiring (Drake's approval).** The gateway does not yet pull and replay sampled jobs. Running coordinator-supplied requests on Drake's shared engine adds load to it, so the Allen gateway owners have declined to do it without Drake's approval. Until replay runs, the sampled re-verification above exists only in the coordinator, and the disclosure sentence about repeating a sample is not yet true. Routing stays off.
 - Drake's confirmation for public routing, after the `/privacy/` and page text above are live.
 
@@ -142,7 +150,8 @@ oh-infer-volunteer run --coordinator https://www.aienos.com/oh/v1/volunteer --co
     --key-file K --manifest M --model-dir D --model-digest HEX [--engine 127.0.0.1:18100] [--pause-file P]
 oh-infer-volunteer pause|resume --pause-file P
 
-oh-infer-coordinator --model-id ID --model-digest HEX --approved-file F --state-dir D \
+oh-infer-coordinator --model-id qwen3.6-35b-a3b-fp8-95a723d0 --model-digest HEX --engine-digest HEX \
+    --approved-file F --state-dir D \
     [--system-prompt-file P] [--key-from-vault NAME] [--routing off|on]
 oh-infer-coordinator reinstate --state-dir D HEX
 ```
