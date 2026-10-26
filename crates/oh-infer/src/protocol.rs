@@ -93,15 +93,23 @@ pub enum CoordMsg {
         model_digest: [u8; 32],
     },
     /// The attestation passed; jobs may follow.
-    Accepted { max_inflight: u32 },
+    Accepted {
+        max_inflight: u32,
+    },
     /// The session ends; the reason is safe to show the owner.
-    Refused { reason: String },
+    Refused {
+        reason: String,
+    },
     Job(Job),
     /// Liveness check while idle. The volunteer answers with `Pong`.
-    Ping { nonce: u64 },
+    Ping {
+        nonce: u64,
+    },
     /// Sampled re-verification found a divergent reply; the key may not
     /// serve until the operator reinstates it.
-    Suspended { reason: String },
+    Suspended {
+        reason: String,
+    },
 }
 
 /// Volunteer to coordinator.
@@ -109,13 +117,22 @@ pub enum CoordMsg {
 pub enum VolMsg {
     Attest(Attestation),
     /// The next piece of the reply to the current job.
-    Token { job_id: [u8; 16], text: String },
+    Token {
+        job_id: [u8; 16],
+        text: String,
+    },
     /// The whole reply, signed. Must equal the concatenated tokens.
     Done(Completion),
     /// The volunteer could not answer; the coordinator tells the gateway.
-    Failed { job_id: [u8; 16], reason: String },
+    Failed {
+        job_id: [u8; 16],
+        reason: String,
+    },
     /// `accepting` is false while the owner has paused lending.
-    Pong { nonce: u64, accepting: bool },
+    Pong {
+        nonce: u64,
+        accepting: bool,
+    },
 }
 
 /// The volunteer's claim, once per session, about what it serves. The
@@ -286,7 +303,10 @@ mod tests {
         assert_eq!(c.verify(&kp.pubkey_bytes(), &j), Ok(()));
         let mut other = j.clone();
         other.seed = 2;
-        assert_eq!(c.verify(&kp.pubkey_bytes(), &other), Err(ProtocolError::WrongJob));
+        assert_eq!(
+            c.verify(&kp.pubkey_bytes(), &other),
+            Err(ProtocolError::WrongJob)
+        );
         let mut tampered = c.clone();
         tampered.output.push('!');
         assert_eq!(

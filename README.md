@@ -4,7 +4,7 @@ Open Humanity is connective tissue for sovereign artificial intelligence: an opt
 
 An attachment of [Aienix](https://github.com/aien-dev/aienix), the core tree of AIEN. It lives in its own repository and plugs into the core at a boundary.
 
-**Status (2026-10-18): early prototype, version 0.1.0.** Two parts exist. The assistance network (signals, relay, firewall) is a set of building blocks that are not yet joined end to end; see "How It Works". Volunteer compute v0, merged on 2026-10-16, runs end to end on one machine over loopback with a toy model; see "Volunteer compute (v0)". This repository is not yet judged by AIEN's Spark pipeline.
+**Status (2026-10-26): early prototype, version 0.1.0.** Three parts exist. The assistance network (signals, relay, firewall) is a set of building blocks that are not yet joined end to end; see "How It Works". Volunteer compute v0, merged on 2026-10-16, runs end to end on one machine over loopback with a toy model; see "Volunteer compute (v0)". Volunteer inference v0 lets opted-in Spark owners answer Allen's overflow visitors; it runs end to end over loopback with a fake engine, is not deployed, and its public routing is off; see "Volunteer inference (v0)". This repository is not yet judged by AIEN's Spark pipeline.
 
 In volunteer compute, the volunteer sends signed model updates or firewalled teaching text, not its training shard or user data. The wider assistance network's privacy promises are design goals, not current guarantees: the prototype client and relay do not apply the firewall to distress signals, and titles and summaries can cross the network in plaintext. Do not put private information in prototype distress signals.
 
@@ -58,6 +58,15 @@ Not built in version 0 (from the design doc):
 
 **Teaching mode.** A volunteer who runs an open language model on their own machine can lend that model instead of training: `oh-volunteer teach --coordinator <addr>` asks the local model (by default the chat server at 127.0.0.1:18091; it refuses any teacher that is not on the same machine) to write a short passage on a hint taken from the work unit, runs the passage through the Personal Data Firewall, and sends only the firewalled text, signed. Text that looks like it holds a password, key or token is not sent at all. The coordinator scores the text in Turings the same way as an update (train a copy of the model on it and measure held-out bits) and, if it helps, trains the shared model on it after the round's update step. Design: [docs/design/qwen-teacher-v0.md](docs/design/qwen-teacher-v0.md). First run against a local Qwen3-30B: [docs/research/2026-10-16-qwen-teacher-v0-results.md](docs/research/2026-10-16-qwen-teacher-v0-results.md). Demo: `scripts/demo-teach.sh`.
 
+## Volunteer inference (v0)
+
+Spark owners who install Sovereign Intelligence can lend their local engine to answer Allen's visitors when Drake's Spark is at its public cap. Design, protocol, disclosure text and threat model: [docs/design/volunteer-inference-v0.md](docs/design/volunteer-inference-v0.md).
+
+- **Two opt-ins**: the owner says yes in a separate, default-off SI wizard step. The visitor ticks "Let a volunteer's Spark answer me when Drake's is busy", which is off by default and shown only in anonymous chat. Remember-me memory, contact data and visitor keys never reach a volunteer: the coordinator refuses any request that carries them.
+- **Outbound only**: `oh-infer-volunteer` connects out over TLS to the coordinator and opens no listening socket. It checks every model file against the pinned manifest before it serves, and attests the manifest digest each session.
+- **Integrity**: every reply is signed, and a sample is replayed on Drake's engine with the same greedy decoding; a reply that differs suspends the volunteer. Most replies are never sampled, so a malicious volunteer can still return a bad reply that is not caught. The visitor disclosure says so.
+- **Status**: IMPLEMENTED and EXERCISED on loopback (`cargo test -p oh-infer`). Not deployed. Routing stays off until the volunteer model and Drake's reference model are the same pin and Drake confirms.
+
 ## Core Crates
 
 - `beacon-core` (Core Data): Data models and packet formats, Ed25519 signing, X25519 and ChaCha20-Poly1305 encryption helpers, replay and timestamp checks, a cuckoo filter, and the Personal Data Firewall.
@@ -66,6 +75,7 @@ Not built in version 0 (from the design doc):
 - `oh-core` (Volunteer Compute Core): The learner interface and the toy `TinyByteModel`, update compression, signed work unit, update and receipt formats with length-prefixed TCP frames, Turing scoring, and the append-only ledger, plus teaching mode: the `Teacher` interface, `LocalHttpTeacher` (a small loopback-only HTTP client for OpenAI-style chat servers), the signed `TeachingBatch` format and text scoring.
 - `oh-coordinator` (Volunteer Compute Coordinator): The `oh-coordinator` command. Listens on `127.0.0.1:18099` by default. Accepts updates and teaching batches from operator-approved volunteer keys on the same port.
 - `oh-volunteer` (Volunteer Compute Client): The `oh-volunteer` command. A vault-backed identity key is required for admission, and `--print-key` gives the public key to enroll with the coordinator.
+- `oh-infer` (Volunteer Inference): the `oh-infer-coordinator` and `oh-infer-volunteer` commands. Both coordinator listeners are loopback only (`127.0.0.1:18096` for volunteers behind nginx, `127.0.0.1:18097` for the Allen gateway). Rust today; its Omega successor is recorded in the design document.
 
 ## Build and test
 
@@ -77,7 +87,7 @@ cargo test --workspace
 
 - **Zero Telemetry**: No user analytics or tracking. The code contains none.
 - **Pure Native Systems**: Written in compiled Rust, plus four shell scripts: contributor checks in `scripts/agent-preflight.sh`, the volunteer compute demos `scripts/demo-local.sh` and `scripts/demo-teach.sh`, and the gap measurement `scripts/volunteer-gap.sh`.
-- **Zero Disk Secrets**: The intended credential source is a hardware vault. The coordinator can read its identity seed from atlas-vault, and volunteer network identity seeds must come from atlas-vault. Each program keeps the recovered seed only in memory, and the contributor preflight script fails if a `.env` file is present. This repository does not implement TPM access itself.
+- **Zero Disk Secrets**: The intended credential source is a hardware vault. The coordinator can read its identity seed from atlas-vault, and training volunteer network identity seeds must come from atlas-vault. Each program keeps the recovered seed only in memory, and the contributor preflight script fails if a `.env` file is present. One documented exception: an inference volunteer on a Spark owner's own machine, which has no atlas-vault, keeps its seed in a mode-0600 key file like an SSH key (`oh-infer-volunteer init`), and `run` refuses a key file other users can read. This repository does not implement TPM access itself.
 
 ## License and Governance
 

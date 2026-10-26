@@ -375,7 +375,9 @@ impl Coordinator {
         if changed {
             self.persist(&st);
             drop(st);
-            self.event(serde_json::json!({"t": now_secs(), "event": "reinstated", "volunteer": hex(key)}));
+            self.event(
+                serde_json::json!({"t": now_secs(), "event": "reinstated", "volunteer": hex(key)}),
+            );
         }
         changed
     }
@@ -394,7 +396,11 @@ impl Coordinator {
             connected: st.sessions.len(),
             healthy,
             busy: st.sessions.values().filter(|s| s.busy).count(),
-            suspended: st.records.values().filter(|r| r.suspended.is_some()).count(),
+            suspended: st
+                .records
+                .values()
+                .filter(|r| r.suspended.is_some())
+                .count(),
             replay_waiting: st.replays.len(),
             replay_taken: st.taken.len(),
             replay_dropped: st.replay_dropped,
@@ -448,7 +454,9 @@ impl Coordinator {
             });
         }
         if out.last().map(|m| m.role) != Some(Role::User) {
-            return Err(RouteError::BadRequest("the last message must be the visitor's".into()));
+            return Err(RouteError::BadRequest(
+                "the last message must be the visitor's".into(),
+            ));
         }
         Ok(out)
     }
@@ -643,15 +651,24 @@ impl Coordinator {
             .and_then(|_| stream.set_write_timeout(Some(HANDSHAKE_TIMEOUT)))
             .map_err(|e| e.to_string())?;
         http::server_upgrade(&mut stream, &cfg.upgrade_path).map_err(|e| e.to_string())?;
-        let mut s = coordinator_handshake(stream, &self.shared.keypair).map_err(|e| e.to_string())?;
+        let mut s =
+            coordinator_handshake(stream, &self.shared.keypair).map_err(|e| e.to_string())?;
         let peer = s.peer_identity();
         let refuse = |s: &mut EncryptedStream<TcpStream>, reason: String| {
-            let _ = send(s, &CoordMsg::Refused { reason: reason.clone() });
+            let _ = send(
+                s,
+                &CoordMsg::Refused {
+                    reason: reason.clone(),
+                },
+            );
             self.event(serde_json::json!({"t": now_secs(), "event": "refused", "volunteer": hex(&peer), "reason": reason}));
             Err(reason)
         };
         if !self.is_approved(&peer) {
-            return refuse(&mut s, "this key is not registered with the coordinator".into());
+            return refuse(
+                &mut s,
+                "this key is not registered with the coordinator".into(),
+            );
         }
         if let Some(reason) = self.record(&peer).suspended {
             return refuse(&mut s, format!("suspended: {reason}"));
@@ -687,7 +704,14 @@ impl Coordinator {
         }
         if let Some(e) = cfg.engine_digest {
             if att.engine_digest != e {
-                return refuse(&mut s, format!("engine hash {} is not the pinned {}", hex(&att.engine_digest), hex(&e)));
+                return refuse(
+                    &mut s,
+                    format!(
+                        "engine hash {} is not the pinned {}",
+                        hex(&att.engine_digest),
+                        hex(&e)
+                    ),
+                );
             }
         }
         send(&mut s, &CoordMsg::Accepted { max_inflight: 1 }).map_err(|e| e.to_string())?;
@@ -736,7 +760,12 @@ impl Coordinator {
                     r?;
                 }
                 Ok(Command::Suspend(reason)) => {
-                    let _ = send(s, &CoordMsg::Suspended { reason: reason.clone() });
+                    let _ = send(
+                        s,
+                        &CoordMsg::Suspended {
+                            reason: reason.clone(),
+                        },
+                    );
                     return Err(format!("suspended {}: {reason}", hex(&peer[..8])));
                 }
                 Err(RecvTimeoutError::Timeout) => {
@@ -781,7 +810,11 @@ impl Coordinator {
         let mut streamed = String::new();
         let mut first = true;
         loop {
-            let per = if first { cfg.first_token_timeout } else { cfg.token_timeout };
+            let per = if first {
+                cfg.first_token_timeout
+            } else {
+                cfg.token_timeout
+            };
             let left = deadline.saturating_duration_since(Instant::now());
             if left.is_zero() {
                 fail(events, "volunteer took too long");
@@ -830,7 +863,12 @@ impl Coordinator {
                         self.persist(&st);
                         drop(st);
                         self.event(serde_json::json!({"t": now_secs(), "event": "stream_mismatch", "volunteer": hex(&peer), "job_digest": hex(&job.digest())}));
-                        let _ = send(s, &CoordMsg::Suspended { reason: "signed reply differs from streamed reply".into() });
+                        let _ = send(
+                            s,
+                            &CoordMsg::Suspended {
+                                reason: "signed reply differs from streamed reply".into(),
+                            },
+                        );
                         return Err("stream mismatch".into());
                     }
                     self.mark(&peer, |r| r.served += 1);
@@ -917,12 +955,20 @@ impl Coordinator {
     }
 
     fn api_overflow(&self, stream: &mut TcpStream, req: &http::Request) -> std::io::Result<()> {
-        for h in ["x-allen-key", "cookie", "authorization", "x-forwarded-for", "x-real-ip"] {
+        for h in [
+            "x-allen-key",
+            "cookie",
+            "authorization",
+            "x-forwarded-for",
+            "x-real-ip",
+        ] {
             if req.head.header(h).is_some() {
                 return write_error(
                     stream,
                     403,
-                    &format!("header {h} is refused: only anonymous chat text may reach a volunteer"),
+                    &format!(
+                        "header {h} is refused: only anonymous chat text may reach a volunteer"
+                    ),
                 );
             }
         }

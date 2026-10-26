@@ -117,7 +117,11 @@ fn read_sse<R: BufRead>(
     let mut line = String::new();
     loop {
         line.clear();
-        if r.by_ref().take(MAX_OUTPUT_BYTES as u64 + 4096).read_line(&mut line)? == 0 {
+        if r.by_ref()
+            .take(MAX_OUTPUT_BYTES as u64 + 4096)
+            .read_line(&mut line)?
+            == 0
+        {
             return Ok(finish);
         }
         let Some(data) = line.trim_end().strip_prefix("data:") else {
@@ -150,7 +154,8 @@ fn read_json<R: Read>(
     on_token: &mut dyn FnMut(&str) -> Result<(), String>,
 ) -> Result<String, EngineError> {
     let mut body = Vec::new();
-    r.take(MAX_OUTPUT_BYTES as u64 * 2 + 1).read_to_end(&mut body)?;
+    r.take(MAX_OUTPUT_BYTES as u64 * 2 + 1)
+        .read_to_end(&mut body)?;
     let v: serde_json::Value =
         serde_json::from_slice(&body).map_err(|e| EngineError::Malformed(e.to_string()))?;
     let choice = &v["choices"][0];
@@ -163,5 +168,8 @@ fn read_json<R: Read>(
     if !text.is_empty() {
         on_token(text).map_err(EngineError::Forward)?;
     }
-    Ok(choice["finish_reason"].as_str().unwrap_or("stop").to_string())
+    Ok(choice["finish_reason"]
+        .as_str()
+        .unwrap_or("stop")
+        .to_string())
 }

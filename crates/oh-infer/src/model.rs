@@ -78,7 +78,8 @@ pub fn verify_model(
             });
         }
     }
-    let text = std::str::from_utf8(&bytes).map_err(|_| ModelError::Malformed("not UTF-8".into()))?;
+    let text =
+        std::str::from_utf8(&bytes).map_err(|_| ModelError::Malformed("not UTF-8".into()))?;
     let mut name = None;
     let mut declared_files = None;
     let mut declared_bytes = None;
@@ -100,7 +101,9 @@ pub fn verify_model(
                     .map_err(|_| ModelError::Malformed(format!("bad size on line {line:?}")))?;
                 let rel = Path::new(path);
                 if rel.components().any(|c| !matches!(c, Component::Normal(_))) {
-                    return Err(ModelError::Malformed(format!("path {path:?} leaves the model folder")));
+                    return Err(ModelError::Malformed(format!(
+                        "path {path:?} leaves the model folder"
+                    )));
                 }
                 entries.push((sha, size, path.to_string()));
             }
@@ -148,7 +151,12 @@ pub fn write_manifest(name: &str, dir: &Path, files: &[&str]) -> Result<Vec<u8>,
             .map_err(|_| ModelError::Unreadable(p.display().to_string()))?
             .len();
         total += size;
-        lines.push_str(&format!("{} {} {}\n", crate::protocol::hex(&sha256_file(&p)?), size, f));
+        lines.push_str(&format!(
+            "{} {} {}\n",
+            crate::protocol::hex(&sha256_file(&p)?),
+            size,
+            f
+        ));
     }
     Ok(format!(
         "name {name}\nurl local\nbytes {total}\nfiles {}\n{lines}",

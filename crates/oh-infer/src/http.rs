@@ -50,10 +50,8 @@ impl Head {
     }
 
     pub fn has_token(&self, name: &str, token: &str) -> bool {
-        self.header(name).is_some_and(|v| {
-            v.split(',')
-                .any(|t| t.trim().eq_ignore_ascii_case(token))
-        })
+        self.header(name)
+            .is_some_and(|v| v.split(',').any(|t| t.trim().eq_ignore_ascii_case(token)))
     }
 }
 
@@ -84,7 +82,9 @@ pub fn parse_head(text: &str) -> io::Result<Head> {
         return Err(bad("malformed HTTP start line"));
     };
     for line in lines.filter(|l| !l.is_empty()) {
-        let (n, v) = line.split_once(':').ok_or_else(|| bad("malformed header"))?;
+        let (n, v) = line
+            .split_once(':')
+            .ok_or_else(|| bad("malformed header"))?;
         head.headers
             .push((n.trim().to_ascii_lowercase(), v.trim().to_string()));
     }
