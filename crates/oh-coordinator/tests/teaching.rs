@@ -122,6 +122,9 @@ fn test_teacher_and_trainer_share_a_round_over_loopback() {
     .unwrap();
     let key = coordinator.pubkey();
     let start = coordinator.heldout_bpb();
+    let trainer_node = Keypair::generate();
+    let teacher_node = Keypair::generate();
+    coordinator.approve_volunteers([trainer_node.pubkey_bytes(), teacher_node.pubkey_bytes()]);
 
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = listener.local_addr().unwrap();
@@ -134,13 +137,12 @@ fn test_teacher_and_trainer_share_a_round_over_loopback() {
     });
 
     let trainer = thread::spawn(move || {
-        let keypair = Keypair::generate();
+        let keypair = trainer_node;
         for _ in 0..2 {
             let mut stream = secure(addr, &keypair, key);
             run_once(&mut stream, &keypair, &volunteer_settings(11)).unwrap();
         }
     });
-    let teacher_node = Keypair::generate();
     let mut outcomes = Vec::new();
     for round in 0..2u64 {
         let teacher = FakeTeacher(good_text(100 + round));

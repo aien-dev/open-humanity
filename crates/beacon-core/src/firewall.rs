@@ -181,8 +181,10 @@ impl PersonalDataFirewall {
         let mut i = 0;
         while i < bytes.len() {
             if bytes[i] == b'%' && i + 2 < bytes.len() {
-                if let Ok(val) = u8::from_str_radix(&input[i + 1..i + 3], 16) {
-                    out.push(val);
+                let hi = (bytes[i + 1] as char).to_digit(16);
+                let lo = (bytes[i + 2] as char).to_digit(16);
+                if let (Some(hi), Some(lo)) = (hi, lo) {
+                    out.push(((hi << 4) | lo) as u8);
                     i += 3;
                     continue;
                 }

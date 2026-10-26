@@ -1045,7 +1045,6 @@ dependencies = [
  "oh-core",
  "oh-volunteer",
  "rand 0.8.8",
- "zeroize",
 ]
 
 [[package]]
@@ -1058,6 +1057,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 1.0.69",
+ "zeroize",
 ]
 
 [[package]]

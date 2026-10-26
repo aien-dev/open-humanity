@@ -25,6 +25,10 @@ STEPS="${STEPS:-500}"
 DIM="${DIM:-32}"
 SEED="${SEED:-1}"
 PORT="${PORT:-18120}"
+if [ -z "${VOLUNTEER_VAULT_KEY:-}" ]; then
+    echo "Set VOLUNTEER_VAULT_KEY to an atlas-vault identity entry" >&2
+    exit 2
+fi
 
 if ! models="$(curl -s -m 10 "http://$TEACHER/v1/models")" || [ -z "$models" ]; then
     echo "No chat server answered at http://$TEACHER/v1/models, so there is no"
@@ -49,6 +53,8 @@ trap cleanup EXIT
 echo "Building release binaries..."
 cargo build --release --quiet -p oh-coordinator -p oh-volunteer --manifest-path "$ROOT/Cargo.toml"
 BIN="$ROOT/target/release"
+line="$("$BIN/oh-volunteer" --print-key --key-from-vault "$VOLUNTEER_VAULT_KEY")"
+approved="${line#volunteer key }"
 
 CORPUS="$ROOT/LICENSE"
 echo "Corpus: LICENSE, $(wc -c < "$CORPUS") bytes, sha256 $(sha256sum "$CORPUS" | cut -c1-16)..."
@@ -57,8 +63,8 @@ echo
 
 coord_log="$WORK/coordinator.log"
 "$BIN/oh-coordinator" --corpus "$CORPUS" --rounds "$BATCHES" --volunteers-per-round 1 \
-    --steps "$STEPS" --dim "$DIM" --seed "$SEED" --listen "127.0.0.1:$PORT" \
-    --ledger "$WORK/ledger.jsonl" > "$coord_log" 2>&1 &
+    --allow-volunteer "$approved" --steps "$STEPS" --dim "$DIM" --seed "$SEED" \
+    --listen "127.0.0.1:$PORT" --ledger "$WORK/ledger.jsonl" > "$coord_log" 2>&1 &
 coord_pid=$!
 
 # The volunteer pins the key the coordinator prints, so the encrypted link
@@ -77,7 +83,8 @@ fi
 
 vol_log="$WORK/volunteer.log"
 "$BIN/oh-volunteer" teach --coordinator "127.0.0.1:$PORT" --teacher "$TEACHER" \
-    --batches "$BATCHES" --max-tokens "$MAX_TOKENS" --seed "$SEED" \
+    --key-from-vault "$VOLUNTEER_VAULT_KEY" --batches "$BATCHES" \
+    --max-tokens "$MAX_TOKENS" --seed "$SEED" \
     --coordinator-key "$key" > "$vol_log" 2>&1 &
 vol_pid=$!
 

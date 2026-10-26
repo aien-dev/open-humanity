@@ -240,6 +240,19 @@ mod tests {
     }
 
     #[test]
+    fn test_firewall_percent_followed_by_multibyte_text() {
+        for text in ["%aé", "%é", "abc%a中", "%a🙂"] {
+            assert_eq!(PersonalDataFirewall::decode_percent(text), text);
+            assert!(PersonalDataFirewall::verify_clean(text).is_ok());
+        }
+        assert_eq!(PersonalDataFirewall::decode_percent("%41é"), "Aé");
+        assert!(matches!(
+            PersonalDataFirewall::verify_clean("%2e%2e%2fetc/passwd"),
+            Err(FirewallViolation::PathTraversal(_))
+        ));
+    }
+
+    #[test]
     fn test_crypto_encryption_cycle() {
         let recipient_secret = StaticSecret::random_from_rng(OsRng);
         let recipient_pubkey = *X25519PublicKey::from(&recipient_secret).as_bytes();

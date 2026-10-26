@@ -7,6 +7,7 @@
 //!        [--baseline | --simulate [--keep-fraction <f>] [--no-compression]
 //!        [--no-update-gate] [--shard-order fixed|rotate]]
 //!        [--key-from-vault <NAME> [--vault-bin <path>]]
+//!        --allow-volunteer <64-hex-public-key> [--allow-volunteer <key> ...]
 //!
 //! `--baseline` trains the same shards for the same total steps in this one
 //! process, with no network, and prints the same held-out measurements.
@@ -21,12 +22,12 @@
 //! volunteers pin it once. The seed is never written to disk or printed.
 
 use beacon_core::Keypair;
-use oh_coordinator::identity::keypair_from_vault;
 use oh_coordinator::{
     baseline, simulate, Coordinator, Settings, ShardOrder, SimOptions, DEFAULT_LISTEN,
     DEFAULT_OUTER_LR,
 };
-use oh_core::Ledger;
+use oh_core::{keypair_from_vault, parse_key, Ledger};
+use std::collections::HashSet;
 use std::net::TcpListener;
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -47,6 +48,7 @@ struct Args {
     sim: SimOptions,
     key_from_vault: Option<String>,
     vault_bin: PathBuf,
+    approved_volunteers: HashSet<[u8; 32]>,
 }
 
 fn parse_args() -> Result<Args, String> {
@@ -67,6 +69,7 @@ fn parse_args() -> Result<Args, String> {
         sim: SimOptions::default(),
         key_from_vault: None,
         vault_bin: PathBuf::from("atlas-vault"),
+        approved_volunteers: HashSet::new(),
     };
     let mut it = std::env::args().skip(1);
     while let Some(flag) = it.next() {
@@ -99,6 +102,10 @@ fn parse_args() -> Result<Args, String> {
             "--ledger" => args.ledger = PathBuf::from(&value),
             "--key-from-vault" => args.key_from_vault = Some(value.clone()),
             "--vault-bin" => args.vault_bin = PathBuf::from(&value),
+            "--allow-volunteer" => {
+                args.approved_volunteers
+                    .insert(parse_key(&value).ok_or_else(bad)?);
+            }
             "--volunteers-per-round" => {
                 s.volunteers_per_round = value.parse().map_err(|_| bad())?
             }
@@ -120,6 +127,11 @@ fn parse_args() -> Result<Args, String> {
     }
     if args.corpus.as_os_str().is_empty() {
         return Err("--corpus <file> is required".into());
+    }
+    if matches!(args.mode, Mode::Serve)
+        && args.approved_volunteers.len() < args.settings.volunteers_per_round
+    {
+        return Err("serve mode requires one distinct --allow-volunteer key per slot".into());
     }
     Ok(args)
 }
@@ -185,6 +197,7 @@ fn run(args: Args) -> Result<(), String> {
         None => (Keypair::generate(), "fresh for this run".to_string()),
     };
     let mut coordinator = Coordinator::with_keypair(&corpus, &args.settings, ledger, keypair)?;
+    coordinator.approve_volunteers(args.approved_volunteers);
     let listener = TcpListener::bind(&args.listen)
         .map_err(|e| format!("cannot listen on {}: {e}", args.listen))?;
     println!("coordinator key {}", hex(&coordinator.pubkey()));

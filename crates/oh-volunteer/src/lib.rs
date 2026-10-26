@@ -283,18 +283,6 @@ pub fn teach_summary_line(batch: u32, outcome: &Outcome) -> String {
     }
 }
 
-/// Parses 64 hex characters into a 32-byte key.
-pub fn parse_key(hex: &str) -> Option<[u8; 32]> {
-    if hex.len() != 64 || !hex.is_ascii() {
-        return None;
-    }
-    let mut out = [0u8; 32];
-    for (i, byte) in out.iter_mut().enumerate() {
-        *byte = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).ok()?;
-    }
-    Some(out)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -303,9 +291,9 @@ mod tests {
     fn test_parse_key_round_trip() {
         let key = Keypair::generate().pubkey_bytes();
         let hex: String = key.iter().map(|b| format!("{b:02x}")).collect();
-        assert_eq!(parse_key(&hex), Some(key));
-        assert_eq!(parse_key("abc"), None);
-        assert_eq!(parse_key(&"zz".repeat(32)), None);
+        assert_eq!(oh_core::parse_key(&hex), Some(key));
+        assert_eq!(oh_core::parse_key("abc"), None);
+        assert_eq!(oh_core::parse_key(&"zz".repeat(32)), None);
     }
 
     #[test]

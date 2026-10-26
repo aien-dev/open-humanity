@@ -1,8 +1,8 @@
-//! Headless Open Humanity Relay Daemon.
+//! Open Humanity prototype UDP relay.
 //!
-//! Stateless UDP datagram forwarder and 7-day TTL ring buffer.
-//! Forwards encrypted capsules and distress signals between swarm nodes
-//! without storing personal context or personal memory.
+//! Accepts well-formed plaintext distress datagrams and keeps the newest
+//! 10,000 in memory. It does not verify signatures, forward packets, accept
+//! encrypted capsules, or expire entries by age.
 
 use beacon_core::schema::{DistressNanobeacon, MAX_DATAGRAM_SIZE};
 use std::collections::VecDeque;
@@ -52,7 +52,7 @@ impl RelayServer {
                     match DistressNanobeacon::from_bytes(packet) {
                         Ok(beacon) => {
                             info!(
-                                "Relayed distress beacon {} [topic: {}] from {}",
+                                "Stored distress beacon {} [topic: {}] from {}",
                                 beacon.beacon_id,
                                 beacon.topic.as_str(),
                                 src

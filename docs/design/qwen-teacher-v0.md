@@ -8,7 +8,7 @@ Status: merged to main in #18. Follow-up F1 changed the teaching step count to o
 
 ## Flow
 
-1. The volunteer runs `oh-volunteer teach --coordinator <addr>`. It connects like any volunteer and receives the current model and a signed work unit.
+1. The volunteer runs `oh-volunteer teach --coordinator <addr> --key-from-vault <NAME> --coordinator-key <hex>` after the coordinator has approved the public key printed by `oh-volunteer --print-key --key-from-vault <NAME>`. It connects like any approved volunteer and receives the current model and a signed work unit.
 2. It checks the work unit's signature and that the model matches `base_digest`. Nothing is sent if either check fails.
 3. It takes a topic hint from the work unit's shard: at most 200 bytes, printable ASCII only, whitespace collapsed, starting on a word boundary (`oh_volunteer::topic_hint`). The start position comes from the volunteer's seed and the round.
 4. It asks the local teacher: "Write a short clear passage that continues or explains this text. Reply with the passage only." followed by the hint (`teach_prompt`).
