@@ -12,7 +12,7 @@ Allen on aienos.com runs on Drake's own Spark, which answers at most two public 
 
 1. Opt in twice.
    - The Spark owner opts in through a separate, default-off step in the SI wizard. It states what runs, when, how much power, GPU and network it uses, how to pause or quit, and that the Spark will process strangers' chat text. The wording is under "Disclosure text".
-   - The visitor opts in too. A chat goes to a volunteer only if the visitor ticked "Let a volunteer's Spark answer me when Drake's is busy". The box is off by default and is shown only in anonymous chat. Remember-me memory and contact data never go to volunteers. A volunteer receives only Allen's public system prompt and the anonymous conversation text needed for that reply.
+   - The visitor opts in too. A chat goes to a volunteer only if the visitor ticked "Let a volunteer's Spark answer me when Drake's is busy". The box is off by default and is shown only in anonymous chat. Remember-me memory and contact data never go to volunteers. A volunteer receives only Allen's public system prompt and the anonymous conversation text needed for that reply. Nothing about the visitor is added, but whatever the visitor typed is included as typed: the coordinator does not scrub conversation text.
 2. The volunteer node is outbound only. It connects to Drake's coordinator on the hub, over TLS through nginx, and opens no listening socket. It is identified by an Ed25519 key registered at opt-in. It runs the SI engine with the pinned model weights, and checks every weight file against the pinned manifest before it can serve.
 3. The coordinator, on Drake's side, routes overflow to healthy volunteers, streams their tokens through the Allen gateway and caps each volunteer's load. Integrity rests on four checks:
    - a model-hash attestation in every session;
@@ -110,7 +110,7 @@ What this does not stop:
 > **Lend this Spark to Allen (Open Humanity). Optional, off unless you say yes.**
 > What runs: a small program, oh-infer-volunteer, that connects out to aienos.com. It opens no ports on your network.
 > What it does: when my Spark is answering its maximum number of visitors, a visitor who chose to let a volunteer answer may be sent to your Spark. Your Spark then processes that stranger's chat text and streams Allen's reply back.
-> What a visitor's message carries: only Allen's public instructions and the visitor's anonymous conversation. Never their name, contact details, memories or address.
+> What a visitor's message carries: only Allen's public instructions and the text of the visitor's anonymous conversation. Nothing about the visitor is added: no visitor key, stored memories, contact record or address. Anything the visitor typed is included as typed.
 > When: only while the program runs and is not paused, and only when my Spark is busy.
 > Load: one reply at a time, at most 60 an hour, each at most 1,024 tokens. While it answers, the GPU is fully busy: the GB10 is rated at 140 W, the whole Spark at most 240 W. Your own chats with Allen may be slower then.
 > Network: about 1 MB per reply at most, about 64 MB an hour at most.
@@ -121,11 +121,11 @@ What this does not stop:
 ### Visitor tick box (anonymous chat only, off by default)
 
 > ☐ Let a volunteer's Spark answer me when Drake's is busy.
-> If you tick this and my Spark is full, your messages in this chat go to a computer owned by a volunteer, outside my house. It gets only this anonymous conversation: no name, contact details or memories. I check a sample of volunteer replies, not every one. A volunteer could still send a wrong or bad reply that I don't catch. Each reply says which machine answered.
+> If you tick this and my Spark is full, your messages in this chat go to a computer owned by a volunteer, outside my house. It gets only the text of this anonymous conversation. I add no visitor key, stored memories, contact record or IP address, but anything you type here is sent as you typed it. I check a sample of volunteer replies, not every one. A volunteer could still send a wrong or bad reply that I don't catch. Each reply says which machine answered.
 
 ### /privacy/ section
 
-> **Volunteer Sparks (Open Humanity).** When my Spark is busy, and only if you ticked "Let a volunteer's Spark answer me", your anonymous chat may be answered by a DGX Spark that belongs to a volunteer who opted in. That volunteer's computer receives Allen's public instructions and the text of your current anonymous conversation, and nothing else: no visitor key, memories, contact details, name or IP address. Remember-me chats are never sent to volunteers. My server keeps no copy of the text it passes along; it records only fingerprints (hashes) of replies it checks. I repeat a sample of volunteer replies on my own Spark and suspend any volunteer whose reply differs, but I don't check every reply, so a volunteer could return a wrong or harmful reply that I don't catch. A volunteer's computer could also keep the text it received. If that matters to you, leave the box unticked. Every volunteer reply is labelled with the machine that answered.
+> **Volunteer Sparks (Open Humanity).** When my Spark is busy, and only if you ticked "Let a volunteer's Spark answer me", your anonymous chat may be answered by a DGX Spark that belongs to a volunteer who opted in. That volunteer's computer receives Allen's public instructions and the text of your current anonymous conversation. No visitor key, stored memories, contact record or IP address is added; anything you typed in the conversation is included as you typed it. Remember-me chats are never sent to volunteers. The relay that passes your chat to a volunteer writes none of its text to disk: the replies it is about to check stay in memory, and its log records only fingerprints (hashes) of them. I repeat a sample of volunteer replies on my own Spark and suspend any volunteer whose reply differs, but I don't check every reply, so a volunteer could return a wrong or harmful reply that I don't catch. A volunteer's computer could also keep the text it received. If that matters to you, leave the box unticked. Every volunteer reply is labelled with the machine that answered.
 
 ## Before routing goes on
 
