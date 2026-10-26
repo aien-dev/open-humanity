@@ -95,9 +95,9 @@ fn spawn_volunteer(
     rounds: u32,
     seed: u64,
     pin: Option<[u8; 32]>,
+    keypair: Keypair,
 ) -> thread::JoinHandle<([u8; 32], Vec<Outcome>)> {
     thread::spawn(move || {
-        let keypair = Keypair::generate();
         let settings = volunteer_settings(seed);
         let outcomes = (0..rounds)
             .map(|_| {
@@ -118,6 +118,43 @@ fn spawn_volunteer(
 }
 
 #[test]
+fn unapproved_identity_cannot_receive_a_training_shard() {
+    let mut settings = settings();
+    settings.volunteers_per_round = 1;
+    let mut coordinator = Coordinator::new(
+        &corpus(6000, 9),
+        &settings,
+        Ledger::open(&fresh_ledger("unapproved")).unwrap(),
+    )
+    .unwrap();
+    let key = coordinator.pubkey();
+    let approved = Keypair::generate();
+    coordinator.approve_volunteers([approved.pubkey_bytes()]);
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = listener.local_addr().unwrap();
+    let server = thread::spawn(move || coordinator.serve(&listener, 1, |_| {}));
+    let rogue = Keypair::generate();
+    let stream = TcpStream::connect(addr).unwrap();
+    stream
+        .set_read_timeout(Some(std::time::Duration::from_secs(2)))
+        .unwrap();
+    if let Ok(mut secure) = volunteer_handshake(stream, &rogue, CoordinatorPin::Key(key)) {
+        assert!(
+            read_frame(&mut secure).is_err(),
+            "unapproved peer received model and is about to receive training shard"
+        );
+    }
+    let mut secure = volunteer_handshake(
+        TcpStream::connect(addr).unwrap(),
+        &approved,
+        CoordinatorPin::Key(key),
+    )
+    .unwrap();
+    run_once(&mut secure, &approved, &volunteer_settings(1)).unwrap();
+    assert!(server.join().unwrap().is_ok());
+}
+
+#[test]
 fn test_two_volunteers_two_rounds_over_loopback() {
     let ledger_path = fresh_ledger("two-rounds");
     let mut coordinator = Coordinator::new(
@@ -128,6 +165,8 @@ fn test_two_volunteers_two_rounds_over_loopback() {
     .unwrap();
     let key = coordinator.pubkey();
     let start = coordinator.heldout_bpb();
+    let nodes: Vec<Keypair> = (0..2).map(|_| Keypair::generate()).collect();
+    coordinator.approve_volunteers(nodes.iter().map(Keypair::pubkey_bytes));
 
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = listener.local_addr().unwrap();
@@ -138,8 +177,10 @@ fn test_two_volunteers_two_rounds_over_loopback() {
             .unwrap();
         reports
     });
-    let volunteers: Vec<_> = (0..2)
-        .map(|i| spawn_volunteer(addr, 2, 10 + i, Some(key)))
+    let volunteers: Vec<_> = nodes
+        .into_iter()
+        .enumerate()
+        .map(|(i, node)| spawn_volunteer(addr, 2, 10 + i as u64, Some(key), node))
         .collect();
     let results: Vec<_> = volunteers.into_iter().map(|v| v.join().unwrap()).collect();
     let reports = server.join().unwrap();
@@ -240,7 +281,7 @@ fn test_no_heldout_bytes_in_any_frame_sent() {
         }
     });
     let volunteers: Vec<_> = (0..2)
-        .map(|i| spawn_volunteer(addr, 2, 20 + i, None))
+        .map(|i| spawn_volunteer(addr, 2, 20 + i, None, Keypair::generate()))
         .collect();
     for v in volunteers {
         v.join().unwrap();

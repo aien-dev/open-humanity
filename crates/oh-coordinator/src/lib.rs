@@ -9,7 +9,6 @@
 //! and, if accepted, trained on after the round's aggregate step. The
 //! held-out bytes never leave this process.
 
-pub mod identity;
 
 use beacon_core::Keypair;
 use oh_core::{
@@ -17,10 +16,11 @@ use oh_core::{
     CompressedDelta, Learner, Ledger, LedgerError, Receipt, Scorer, Submission, TeachingBatch,
     TinyByteModel, Update, WorkUnit,
 };
-use std::io::{Read, Write};
-use std::net::TcpListener;
+use std::collections::HashSet;
+use std::io::{self, Read, Write};
+use std::net::{TcpListener, TcpStream};
 use std::ops::Range;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 pub const DEFAULT_LISTEN: &str = "127.0.0.1:18099";
 
@@ -38,6 +38,44 @@ pub const ROUND_TIMEOUT_SECS: u64 = 600;
 
 /// Outer learning rate when none is given: apply the plain mean.
 pub const DEFAULT_OUTER_LR: f64 = 1.0;
+
+/// Enforces one wall-clock deadline across all reads and writes. Socket
+/// timeouts alone reset for each short read, so a trickle of handshake bytes
+/// could otherwise occupy the accept loop indefinitely.
+struct DeadlineStream {
+    socket: TcpStream,
+    deadline: Instant,
+}
+
+impl DeadlineStream {
+    fn remaining(&self) -> io::Result<Duration> {
+        let remaining = self.deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            Err(io::Error::new(io::ErrorKind::TimedOut, "connection deadline"))
+        } else {
+            Ok(remaining)
+        }
+    }
+}
+
+impl Read for DeadlineStream {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.socket.set_read_timeout(Some(self.remaining()?))?;
+        self.socket.read(buf)
+    }
+}
+
+impl Write for DeadlineStream {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.socket.set_write_timeout(Some(self.remaining()?))?;
+        self.socket.write(buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.remaining()?;
+        self.socket.flush()
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Settings {
@@ -183,6 +221,7 @@ pub struct Coordinator {
     outer_lr: f64,
     round: u32,
     ledger: Ledger,
+    approved_volunteers: HashSet<[u8; 32]>,
 }
 
 impl Coordinator {
@@ -224,7 +263,14 @@ impl Coordinator {
             outer_lr: settings.outer_lr,
             round: 0,
             ledger,
+            approved_volunteers: HashSet::new(),
         })
+    }
+
+    /// Replace the operator-approved volunteer identities. Network rounds
+    /// refuse to start unless this set can fill every slot.
+    pub fn approve_volunteers(&mut self, keys: impl IntoIterator<Item = [u8; 32]>) {
+        self.approved_volunteers = keys.into_iter().collect();
     }
 
     pub fn pubkey(&self) -> [u8; 32] {
@@ -527,36 +573,49 @@ impl Coordinator {
         Ok(self.finish_round_with_teaching(&accepted, &taught))
     }
 
-    /// Runs `rounds` rounds on `listener`, waiting each round for one
-    /// connection per shard, and passes each round's report to `log`. Every
-    /// connection starts with the encrypted-transport handshake
-    /// (`oh_core::coordinator_handshake`, signed with this run's key); one
-    /// that fails it is closed and not counted.
+    /// Runs `rounds` rounds, admitting only approved signing keys before
+    /// reserving a slot or sending a shard. A key fills at most one slot per
+    /// round. Failed handshakes do not extend the round's admission deadline.
     pub fn serve(
         &mut self,
         listener: &TcpListener,
         rounds: u32,
         mut log: impl FnMut(&RoundReport),
     ) -> Result<(), String> {
+        if self.approved_volunteers.len() < self.shards.len() {
+            return Err("not enough approved volunteer keys for the round".into());
+        }
+        listener.set_nonblocking(true).map_err(|e| e.to_string())?;
         for _ in 0..rounds {
+            let deadline = Instant::now() + Duration::from_secs(ROUND_TIMEOUT_SECS);
             let mut conns = Vec::with_capacity(self.shards.len());
+            let mut seen = HashSet::with_capacity(self.shards.len());
             while conns.len() < self.shards.len() {
-                let (stream, peer) = listener.accept().map_err(|e| e.to_string())?;
-                let set_timeout = |secs| {
-                    let t = Some(Duration::from_secs(secs));
-                    stream
-                        .set_read_timeout(t)
-                        .and_then(|_| stream.set_write_timeout(t))
-                        .map_err(|e| e.to_string())
+                if Instant::now() >= deadline {
+                    return Err("timed out waiting for approved volunteers".into());
+                }
+                let (stream, peer) = match listener.accept() {
+                    Ok(pair) => pair,
+                    Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                        std::thread::sleep(Duration::from_millis(50));
+                        continue;
+                    }
+                    Err(e) => return Err(e.to_string()),
                 };
-                set_timeout(HANDSHAKE_TIMEOUT_SECS)?;
+                stream.set_nonblocking(false).map_err(|e| e.to_string())?;
+                let stream = DeadlineStream {
+                    socket: stream,
+                    deadline: Instant::now() + Duration::from_secs(HANDSHAKE_TIMEOUT_SECS),
+                };
                 match coordinator_handshake(stream, &self.keypair) {
-                    Ok(conn) => {
-                        let s = conn.get_ref();
-                        let t = Some(Duration::from_secs(ROUND_TIMEOUT_SECS));
-                        s.set_read_timeout(t)
-                            .and_then(|_| s.set_write_timeout(t))
-                            .map_err(|e| e.to_string())?;
+                    Ok(mut conn) => {
+                        let identity = conn.peer_identity();
+                        if !self.approved_volunteers.contains(&identity) || !seen.insert(identity) {
+                            eprintln!("connection from {peer}: volunteer key not approved or already admitted");
+                            continue;
+                        }
+                        conn.get_mut().deadline =
+                            Instant::now() + Duration::from_secs(ROUND_TIMEOUT_SECS);
                         conns.push(conn);
                     }
                     Err(e) => eprintln!("connection from {peer}: handshake failed: {e}"),
@@ -753,6 +812,20 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_connection_deadline_refuses_trickle_after_expiry() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let _client = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
+        let (socket, _) = listener.accept().unwrap();
+        let mut stream = DeadlineStream {
+            socket,
+            deadline: Instant::now(),
+        };
+        let mut byte = [0];
+        assert_eq!(stream.read(&mut byte).unwrap_err().kind(), io::ErrorKind::TimedOut);
+        assert_eq!(stream.write(b"x").unwrap_err().kind(), io::ErrorKind::TimedOut);
+    }
+
+    #[test]
     fn test_split_keeps_heldout_as_the_tail() {
         let corpus: Vec<u8> = (0..100u8).collect();
         let (train, heldout) = split_corpus(&corpus, 0.1).unwrap();
@@ -827,6 +900,21 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         Ledger::open(&dir.join("ledger.jsonl")).unwrap()
+    }
+
+    #[test]
+    fn test_serve_refuses_missing_or_duplicate_approval_keys() {
+        let mut coordinator = Coordinator::new(
+            &corpus(6000, 4),
+            &settings(2, 1.0),
+            fresh_ledger("admission"),
+        )
+        .unwrap();
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        assert!(coordinator.serve(&listener, 1, |_| {}).is_err());
+        let key = Keypair::generate().pubkey_bytes();
+        coordinator.approve_volunteers([key, key]);
+        assert!(coordinator.serve(&listener, 1, |_| {}).is_err());
     }
 
     #[test]
