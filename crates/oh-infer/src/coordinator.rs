@@ -674,8 +674,8 @@ impl Coordinator {
         if let Some(reason) = self.record(&peer).suspended {
             return refuse(&mut s, format!("suspended: {reason}"));
         }
-        let mut nonce = [0u8; 32];
-        rand::thread_rng().fill_bytes(&mut nonce);
+        // Fresh per session from the thread-local CSPRNG (ChaCha, OS-seeded).
+        let nonce: [u8; 32] = rand::random();
         send(
             &mut s,
             &CoordMsg::Challenge {

@@ -277,20 +277,22 @@ mod tests {
     #[test]
     fn attestation_binds_signer_nonce_and_model() {
         let kp = Keypair::generate();
-        let a = Attestation::new_signed(&kp, [1; 32], "m", [2; 32], [0; 32]);
-        assert_eq!(a.verify(&kp.pubkey_bytes(), &[1; 32]), Ok(()));
+        let nonce: [u8; 32] = rand::random();
+        let other: [u8; 32] = rand::random();
+        let a = Attestation::new_signed(&kp, nonce, "m", [2; 32], [0; 32]);
+        assert_eq!(a.verify(&kp.pubkey_bytes(), &nonce), Ok(()));
         assert_eq!(
-            a.verify(&kp.pubkey_bytes(), &[9; 32]),
+            a.verify(&kp.pubkey_bytes(), &other),
             Err(ProtocolError::WrongNonce)
         );
         assert_eq!(
-            a.verify(&Keypair::generate().pubkey_bytes(), &[1; 32]),
+            a.verify(&Keypair::generate().pubkey_bytes(), &nonce),
             Err(ProtocolError::WrongSigner)
         );
         let mut forged = a.clone();
         forged.model_digest = [3; 32];
         assert_eq!(
-            forged.verify(&kp.pubkey_bytes(), &[1; 32]),
+            forged.verify(&kp.pubkey_bytes(), &nonce),
             Err(ProtocolError::BadSignature)
         );
     }
