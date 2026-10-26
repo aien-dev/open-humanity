@@ -114,12 +114,21 @@ fn fixed_steps_chain(order: [&[u8]; 3]) -> Vec<f64> {
 
 #[test]
 fn test_fixed_steps_overfit_short_passages() {
-    // The version 0 failure, reproduced: after one passage is trained on,
-    // 500 steps on the next ~500 byte passage raise held-out bits.
-    for order in ORDERS {
-        let t = fixed_steps_chain(order);
-        assert!(t[0] > 0.0, "{t:?}");
-        assert!(t[1] < 0.0, "expected the second batch to overfit: {t:?}");
+    // The LICENSE corpus changed from AGPL to Apache-2.0. The fixed-step
+    // rule still overfits a later passage, but not always the second one.
+    // The one-pass control must keep every batch positive on the same corpus.
+    for (i, order) in ORDERS.into_iter().enumerate() {
+        let fixed = fixed_steps_chain(order);
+        let scaled = coordinator_chain(order, &format!("fixed-control{i}"));
+        assert!(fixed[0] > 0.0, "{fixed:?}");
+        assert!(
+            fixed.iter().skip(1).any(|&score| score < 0.0),
+            "fixed steps did not overfit a later batch: {fixed:?}"
+        );
+        assert!(
+            scaled.iter().all(|&score| score > 0.0),
+            "one-pass control did not stay positive: {scaled:?}"
+        );
     }
 }
 
