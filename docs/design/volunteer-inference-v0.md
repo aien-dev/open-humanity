@@ -130,6 +130,7 @@ What this does not stop:
 ## Before routing goes on
 
 - **The shared model (blocker, Drake's decision).** SI alpha-20261026.1 pins `Qwen/Qwen3.8-27B-FP8` revision `017b9c7a`. Drake's Spark serves Qwen3.6-35B on 18091. Replay compares volunteer replies with Drake's engine, so both must run the same pinned weights. Otherwise every sampled reply diverges and every volunteer is suspended. Either SI ships the model Drake serves, or Drake's reference engine runs the SI pin. Until one of those is true, `--routing` stays `off` and so does the gateway flag.
+- **Replay wiring (Drake's approval).** The gateway does not yet pull and replay sampled jobs. Running coordinator-supplied requests on Drake's shared engine adds load to it, so the Allen gateway owners have declined to do it without Drake's approval. Until replay runs, the sampled re-verification above exists only in the coordinator, and the disclosure sentence about repeating a sample is not yet true. Routing stays off.
 - Drake's confirmation for public routing, after the `/privacy/` and page text above are live.
 
 ## Commands
