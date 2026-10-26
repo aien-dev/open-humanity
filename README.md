@@ -75,7 +75,7 @@ Spark owners who install Sovereign Intelligence can lend their local engine to a
 - `oh-core` (Volunteer Compute Core): The learner interface and the toy `TinyByteModel`, update compression, signed work unit, update and receipt formats with length-prefixed TCP frames, Turing scoring, and the append-only ledger, plus teaching mode: the `Teacher` interface, `LocalHttpTeacher` (a small loopback-only HTTP client for OpenAI-style chat servers), the signed `TeachingBatch` format and text scoring.
 - `oh-coordinator` (Volunteer Compute Coordinator): The `oh-coordinator` command. Listens on `127.0.0.1:18099` by default. Accepts updates and teaching batches from operator-approved volunteer keys on the same port.
 - `oh-volunteer` (Volunteer Compute Client): The `oh-volunteer` command. A vault-backed identity key is required for admission, and `--print-key` gives the public key to enroll with the coordinator.
-- `oh-infer` (Volunteer Inference): the `oh-infer-coordinator` and `oh-infer-volunteer` commands. Both coordinator listeners are loopback only (`127.0.0.1:18096` for volunteers behind nginx, `127.0.0.1:18097` for the Allen gateway). Rust today; its Omega successor is recorded in the design document.
+- `oh-infer` (Volunteer Inference): the `oh-infer-coordinator` and `oh-infer-volunteer` commands. Both coordinator listeners are loopback only (`127.0.0.1:18136` for volunteers behind nginx, `127.0.0.1:18137` for the Allen gateway). Rust today; its Omega successor is recorded in the design document.
 
 ## Build and test
 

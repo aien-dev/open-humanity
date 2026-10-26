@@ -40,8 +40,9 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-pub const DEFAULT_VOLUNTEER_LISTEN: &str = "127.0.0.1:18096";
-pub const DEFAULT_API_LISTEN: &str = "127.0.0.1:18097";
+// 18096 is taken on Drake's Spark (Allen's visitor memory); keep clear of it.
+pub const DEFAULT_VOLUNTEER_LISTEN: &str = "127.0.0.1:18136";
+pub const DEFAULT_API_LISTEN: &str = "127.0.0.1:18137";
 pub const DEFAULT_UPGRADE_PATH: &str = "/oh/v1/volunteer";
 /// Largest gateway request body.
 pub const MAX_API_BODY: usize = 256 * 1024;

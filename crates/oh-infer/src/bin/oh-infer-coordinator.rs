@@ -3,7 +3,7 @@
 //! oh-infer-coordinator --model-id <id> --model-digest <hex>
 //!     [--engine-digest <hex>] [--system-prompt-file <path>]
 //!     [--approve <hex>]... [--approved-file <path>]
-//!     [--listen-volunteers 127.0.0.1:18096] [--listen-api 127.0.0.1:18097]
+//!     [--listen-volunteers 127.0.0.1:18136] [--listen-api 127.0.0.1:18137]
 //!     [--state-dir <dir>] [--key-from-vault <NAME> [--vault-bin <path>]]
 //!     [--sample-rate 0.1] [--probation-sample-rate 0.5] [--probation-jobs 20]
 //!     [--max-jobs-per-hour 60] [--max-tokens 1024] [--routing off|on]
