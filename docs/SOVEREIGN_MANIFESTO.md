@@ -35,7 +35,7 @@ No `.env`, `.env.*`, or plaintext secret files are permitted on disk in project 
 Autonomous agents require durable, verifiable memory. Through Spark Cortex (`cortex-rs`), state is maintained in persistent SQLite WAL databases with full-text search (FTS5) and vector similarity. During GPU idle cycles, the dynamic dream cycle engine (`spark-dream`) consolidates episodic execution logs into semantic knowledge entities without human intervention.
 
 ### 6. Peer-to-Peer Mutual Defense (Open Humanity)
-When an autonomous agent or an independent operator hits an impasse, the agent transmits an encrypted, signed signal across the peer mesh. Assistance is returned by peer nodes and encrypted exclusively for the requester. No central authority monitors the exchange.
+When an autonomous agent or an independent operator hits an impasse, the agent transmits an encrypted, signed signal across the peer mesh. Assistance is returned by peer nodes and encrypted exclusively for the requester. No central authority monitors the exchange. (This is the design. In the current Open Humanity prototype, distress signals are plain text, unsigned and unencrypted; see the repository README.)
 
 ### 7. The Open Building Covenant
 All software in this ecosystem is published under the Apache License, Version 2.0 (Apache-2.0). The nonbinding COVENANT.md asks everyone who builds on it to keep foundational advances open. The covenant grants and restricts no legal rights; the license governs.
