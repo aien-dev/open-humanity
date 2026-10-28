@@ -58,6 +58,68 @@ Not built in version 0 (from the design doc):
 
 **Teaching mode.** A volunteer who runs an open language model on their own machine can lend that model instead of training: `oh-volunteer teach --coordinator <addr>` asks the local model (by default the chat server at 127.0.0.1:18091; it refuses any teacher that is not on the same machine) to write a short passage on a hint taken from the work unit, runs the passage through the Personal Data Firewall, and sends only the firewalled text, signed. Text that looks like it holds a password, key or token is not sent at all. The coordinator scores the text in Turings the same way as an update (train a copy of the model on it and measure held-out bits) and, if it helps, trains the shared model on it after the round's update step. Design: [docs/design/qwen-teacher-v0.md](docs/design/qwen-teacher-v0.md). First run against a local Qwen3-30B: [docs/research/2026-10-16-qwen-teacher-v0-results.md](docs/research/2026-10-16-qwen-teacher-v0-results.md). Demo: `scripts/demo-teach.sh`.
 
+### Aienet-0 deterministic job recovery
+
+`aienet0-run` and `aienet0-serve` carry the pinned MJB1/MJR1 `matmul_u32`
+profile over the encrypted, mutually pinned transport. This is a bounded
+test-credit job path, not a public or incentivized service.
+
+The worker's `--state DIR` contains a permanent advisory `lock` and a
+versioned `seen` snapshot. One exclusive writer owns admission, computation,
+and result publication. A concurrent worker that cannot acquire the lock
+fails locally with exit 15, without executing. Every state read and record
+must succeed: unreadable files, invalid UTF-8, malformed or incomplete
+records, noncanonical digests, duplicate entries and invalid receipt
+structure are refused. Legacy bare-digest entries remain replay-only,
+because the old format did not retain recoverable results.
+
+New jobs transition from `admitted` (exact bundle digest and executor key)
+to `done` (the same identity and complete signed receipt). Each transition
+writes a unique `create_new` temporary file, synchronizes it, atomically
+replaces the snapshot, and synchronizes the state directory. Admission is
+durable before computation; completion is durable before delivery. The
+signed worker policy is version 2.
+
+- Default redelivery of a completed job still refuses `AN0_REPLAY`.
+- An interrupted `admitted` job resumes when the exact, still-valid bundle
+  is redelivered after restart. The exclusive lock prevents overlapping
+  executions. Recovery is driven by redelivery, not a background scheduler.
+- Worker `--retry` permits idempotent redelivery: a completed job returns
+  its byte-identical stored receipt without computing or signing again.
+  Use requester `run --resend BUNDLE` with this worker option. The requester
+  can reuse byte-identical existing output artifacts and finish a missing
+  countersignature file; different existing bytes are refused.
+- A crash after computation but before durable completion can cause
+  sequential recomputation of the deterministic job. This is not a promise
+  of exactly-once physical execution across crashes. Expired bundles and
+  changed bundle or executor identities remain refused.
+
+All writers sharing a state directory must use this implementation. The
+directory must be protected from external deletion, replacement and
+rollback, on a local filesystem that supports advisory locks, atomic rename,
+hard links and synchronization. Do not mix old workers with the new state.
+Requester artifacts are published from unique synchronized temporary files
+with a no-replace hard link, including when a destination is a dangling
+symlink; concurrent writers cannot overwrite an existing artifact.
+
+Regression commands:
+
+```bash
+cargo test -p oh-volunteer --bin aienet0-serve
+cargo test -p oh-coordinator --bin aienet0-run
+bash scripts/aienet0/controls.sh EVIDENCE_DIR
+bash scripts/aienet0/mutants.sh EVIDENCE_DIR
+```
+
+The scripts document their required key, pin and recompute environment.
+Controls retain the original replay-refusal case and add cached retry.
+Unit tests race two workers and kill a test worker with SIGKILL after
+durable admission, after computation, and after durable completion. The
+fault-injection hooks exist only in test binaries. Mutants remove the lock,
+read/parse refusals, replay refusal, recovery, cached-result reuse and
+no-replace publication as well as the original transport guards. Process
+crash tests do not establish power-loss or storage-device qualification.
+
 ## Core Crates
 
 - `beacon-core` (Core Data): Data models and packet formats, Ed25519 signing, X25519 and ChaCha20-Poly1305 encryption helpers, replay and timestamp checks, a cuckoo filter, and the Personal Data Firewall.

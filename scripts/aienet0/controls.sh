@@ -59,9 +59,13 @@ case_() {
 case_ baseline 0 0 '^VERIFIED ' '' ''
 dag=$(awk '/^VERIFIED /{print $2}' "$E/baseline.run.out" 2>/dev/null)
 if [[ -n ${dag:-} && . =~ $FILTER ]]; then
-  "$RUN" check --bundle "$OUT/$dag.an0b" --mjr1 "$OUT/$dag.mjr1" --mjv "$OUT/$dag.mjv" \
-    --keys "$KEYS" --pins "$PINS" >"$E/baseline.check.out" 2>&1
-  echo "baseline.check rc=$? :: $(cat "$E/baseline.check.out")"
+  if "$RUN" check --bundle "$OUT/$dag.an0b" --mjr1 "$OUT/$dag.mjr1" --mjv "$OUT/$dag.mjv" \
+    --keys "$KEYS" --pins "$PINS" >"$E/baseline.check.out" 2>&1; then
+    echo "baseline.check rc=0 :: $(cat "$E/baseline.check.out")"
+  else
+    echo "baseline.check FAILED :: $(cat "$E/baseline.check.out")"
+    fail=1
+  fi
   (cd "$OUT" && sha256sum "$dag.an0b" "$dag.mjr1" "$dag.mjv") >"$E/baseline.artifacts.sha256"
 fi
 case_ wrong-output        13 0  'REFUSED AN0_RECOMPUTE_MISMATCH' '' '--misbehave wrong-output'
@@ -72,6 +76,14 @@ case_ not-allowlisted-kind 11 11 'AN0_NOT_ALLOWLISTED'           '--payload-kind
 case_ over-budget         11 11 'AN0_OVER_BUDGET'                '--m 512' ''
 if [[ -n ${dag:-} ]]; then
   case_ replay            11 11 'AN0_REPLAY'                     "--resend $OUT/$dag.an0b" ''
+  case_ retry-completed    0 0 '^VERIFIED '                      "--resend $OUT/$dag.an0b" '--retry'
+  if [[ retry-completed =~ $FILTER ]]; then
+    if grep -q 'executing dag_id=' "$E/retry-completed.serve.err" ||
+       ! cmp -s "$E/baseline.run.out" "$E/retry-completed.run.out"; then
+      echo 'retry-completed FAILED: recomputation or different receipt'
+      fail=1
+    fi
+  fi
 else
   printf 'replay\t11\tNOT_RUN\t11\tNOT_RUN\tbaseline produced no bundle\tMISMATCH\n' >>"$E/summary.tsv"; fail=1
 fi

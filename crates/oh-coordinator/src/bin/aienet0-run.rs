@@ -42,14 +42,16 @@ use aien_microjob::{compute_op, dag_digest, decode};
 use oh_core::carrier::{recv_frame, send_frame, Frame};
 use oh_core::{coordinator_handshake_pinned, keypair_from_seed_hex};
 use sha2::{Digest, Sha256};
-use std::fs::{self, File};
+use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode, Stdio};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+#[derive(Debug)]
 struct Fail(u8, String);
 
 type P256 = p256::ecdsa::SigningKey;
@@ -106,25 +108,31 @@ fn refused(code: u8, r: An0Refusal) -> Fail {
     Fail(code, format!("REFUSED {}", r.name()))
 }
 
-/// Write `bytes` to `path` with no overwrite: temp file, fsync, rename,
-/// fsync of the directory.
+static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
+
+/// Synchronize a unique temporary file, then link without replacing any
+/// existing directory entry (including dangling symlinks).
 fn write_new(path: &Path, bytes: &[u8]) -> Result<(), Fail> {
     let io = |e: std::io::Error| Fail(15, format!("{}: {e}", path.display()));
-    if path.exists() {
-        return Err(Fail(
-            15,
-            format!("REFUSED AN0_OUTPUT_EXISTS {}", path.display()),
-        ));
-    }
-    let tmp = path.with_extension("tmp");
-    let mut f = File::create(&tmp).map_err(io)?;
-    f.write_all(bytes).map_err(io)?;
-    f.sync_all().map_err(io)?;
-    fs::rename(&tmp, path).map_err(io)?;
-    if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
-        File::open(dir).and_then(|d| d.sync_all()).map_err(io)?;
-    }
-    Ok(())
+    let dir = path.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(Path::new("."));
+    let tmp = dir.join(format!(".an0-output-{}-{}", std::process::id(),
+        NEXT_TEMP.fetch_add(1, Ordering::Relaxed)));
+    let mut f = OpenOptions::new().write(true).create_new(true).open(&tmp).map_err(io)?;
+    let result = (|| {
+        f.write_all(bytes).map_err(io)?;
+        f.sync_all().map_err(io)?;
+        // AN0-GUARD output-no-replace
+        fs::hard_link(&tmp, path).map_err(|e| {
+            if e.kind() == std::io::ErrorKind::AlreadyExists {
+                Fail(15, format!("REFUSED AN0_OUTPUT_EXISTS {}", path.display()))
+            } else {
+                io(e)
+            }
+        })?;
+        File::open(dir).and_then(|d| d.sync_all()).map_err(io)
+    })();
+    fs::remove_file(&tmp).map_err(io)?;
+    result
 }
 
 /// Run the pinned Omega recompute on the payload; returns its digest.
@@ -257,8 +265,19 @@ fn run(args: &[String]) -> Result<(), Fail> {
         refused(code, r)
     })?;
     let mjr1_path = out_dir.join(format!("{dag}.mjr1"));
-    write_new(&mjr1_path, &receipt)?;
-    write_new(&out_dir.join(format!("{dag}.mjv")), &mjv)?;
+    // A retry may finish a prior requester interrupted between these files.
+    // Existing artifacts are reusable only when byte-identical.
+    for (path, bytes) in [
+        (&mjr1_path, receipt.as_slice()),
+        (&out_dir.join(format!("{dag}.mjv")), mjv.as_slice()),
+    ] {
+        match fs::read(path) {
+            Ok(existing) if existing == bytes => {}
+            Ok(_) => return Err(Fail(15, format!("REFUSED AN0_OUTPUT_EXISTS {} differs", path.display()))),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => write_new(path, bytes)?,
+            Err(e) => return Err(Fail(15, format!("{}: {e}", path.display()))),
+        }
+    }
     println!(
         "VERIFIED {dag} {} {}",
         to_hex(&sha(&receipt)),
@@ -368,5 +387,62 @@ fn main() -> ExitCode {
             println!("{msg}");
             ExitCode::from(code)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::os::unix::fs::symlink;
+    use std::sync::{Arc, Barrier};
+
+    fn scratch() -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("an0-output-{}-{}", std::process::id(),
+            NEXT_TEMP.fetch_add(1, Ordering::Relaxed)));
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn write_new_refuses_dangling_destination() {
+        let dir = scratch();
+        let path = dir.join("result");
+        symlink(dir.join("missing"), &path).unwrap();
+        assert!(write_new(&path, b"must not replace").is_err());
+        assert!(path.symlink_metadata().unwrap().file_type().is_symlink());
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn write_new_has_one_concurrent_winner() {
+        let dir = scratch();
+        let path = dir.join("result");
+        let barrier = Arc::new(Barrier::new(2));
+        let handles: Vec<_> = [b'a', b'b'].into_iter().map(|byte| {
+            let (path, barrier) = (path.clone(), barrier.clone());
+            thread::spawn(move || {
+                barrier.wait();
+                write_new(&path, &[byte; 4096]).is_ok()
+            })
+        }).collect();
+        let winners = handles.into_iter().map(|h| h.join().unwrap()).filter(|ok| *ok).count();
+        assert_eq!(winners, 1);
+        let bytes = fs::read(&path).unwrap();
+        assert!(bytes == [b'a'; 4096] || bytes == [b'b'; 4096]);
+        assert!(write_new(&path, b"overwrite").is_err());
+        assert_eq!(fs::read(path).unwrap(), bytes);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn write_new_does_not_touch_preexisting_temp() {
+        let dir = scratch();
+        let path = dir.join("result");
+        let old_tmp = path.with_extension("tmp");
+        fs::write(&old_tmp, b"another writer").unwrap();
+        write_new(&path, b"complete result").unwrap();
+        assert_eq!(fs::read(old_tmp).unwrap(), b"another writer");
+        assert_eq!(fs::read(path).unwrap(), b"complete result");
+        fs::remove_dir_all(dir).unwrap();
     }
 }
