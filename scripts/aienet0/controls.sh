@@ -24,6 +24,28 @@
 #   WKEYS_ROGUE_TRANSPORT        worker keys: unpinned transport identity
 # Optional: JOB (default "64 64 64 2716205057"), FILTER (only cases whose name matches).
 set -u -o pipefail
+
+# Settlement orchestration belongs to the authenticated protocols adapter.
+# Keep the retired unsigned Core792 entrypoint from returning, including as
+# a dangling link. The source-only mode also checks frozen before/mutant trees.
+settlement_source_check() {
+  local root=$1
+  if [[ ! -d "$root" || ! -f "$root/Cargo.toml" || ! -f "$root/crates/oh-core/Cargo.toml" || ! -f "$root/scripts/aienet0/controls.sh" ]]; then
+    echo "SETTLEMENT_SOURCE INVALID: not an Open Humanity source root: $root" >&2
+    return 2
+  fi
+  if [[ -e "$root/scripts/aienet0/settle-run.sh" || -L "$root/scripts/aienet0/settle-run.sh" ]]; then
+    echo "SETTLEMENT_SOURCE FAIL: retired unsigned entrypoint exists: $root/scripts/aienet0/settle-run.sh" >&2
+    return 1
+  fi
+  echo 'SETTLEMENT_SOURCE PASS: no Open Humanity settlement entrypoint'
+}
+if [[ ${1:-} == --settlement-source ]]; then
+  [[ $# == 2 ]] || { echo 'usage: controls.sh --settlement-source SOURCE_ROOT' >&2; exit 2; }
+  settlement_source_check "$2"
+  exit $?
+fi
+settlement_source_check "$(cd -- "$(dirname -- "$0")/../.." && pwd)" || exit 1
 E=${1:?usage: controls.sh EVIDENCE_DIR}
 mkdir -p "$E" "$OUT"
 : "${RUN:?}" "${SERVE:?}" "${LISTEN:?}" "${CONNECT:?}" "${KEYS:?}" "${PINS:?}" "${ROGUE_KEYS:?}"

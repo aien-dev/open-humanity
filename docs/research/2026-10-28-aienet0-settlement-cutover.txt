@@ -1,0 +1,642 @@
+Aienet-0 unsigned-entrypoint retirement, 2026-10-28
+Status: HOST_TESTED. No GPU, resident-model, deployment, RPC or physical power-loss claim.
+Base: Open Humanity #46, d7ea88b679aac9f69c875122f4c395c86233ec9b.
+Branch: fix/aienet0-retire-unsigned-settlement, stacked on fix/aienet0-recompute-timeout.
+Retired: open-humanity/scripts/aienet0/settle-run.sh, deleted without forwarding shim.
+Retired source and immutable protocols archive SHA256: fc2f07e12a973a4496cb3f8b24f3a0c7d4ff04232e5c8f74efd3680dee7a1ef9.
+Archive preserved: aien-protocols-mv/evidence/aienet0-20261028/settlement/settle-run.sh.at-run.
+Ownership source: protocols #67 P0_INTEROP_PROFILE.md, Authenticated local ledger adapter; parent assignment and carrier #46 own separate scopes.
+Current orchestration: aien-protocols-mv #67, 91ed69a8ee6e23476ab164be8f9cecea04206786, scripts/aienet0/{settle-run.sh,settle-check.sh}.
+Current ledger: Core #794, 5b3b644eed359aa4c96377cdfdba76d11330a95d, om/tur-ledger/tur-ledger.om.
+Carrier binaries are still the frozen d7ea88b build with protocols 7bfb4ee2fda4fee023a8f9b62639efedc1206391 / aien-microjob 0.2.0. This cutover changes no compiled carrier source or dependency.
+Source gate is also a preflight of the normal controls.sh invocation. Source-only mode rejects incomplete/nonexistent roots as INVALID=2 before checking path absence.
+Machine-local path prefixes below are projected as environment-variable labels, not byte-identical copies. SHA256 entries cover original bytes. Existing baseline evidence is untouched.
+
+SOURCE BEFORE / AFTER / RESTORED MUTANT / INVALID CONTROLS:
+[
+  {
+    "name": "before-d7ea88b",
+    "command": [
+      "bash",
+      "$OH_TREE/scripts/aienet0/controls.sh",
+      "--settlement-source",
+      "$CARRIER_TREE"
+    ],
+    "expected": 1,
+    "observed": 1,
+    "stdout": "",
+    "stderr": "SETTLEMENT_SOURCE FAIL: retired unsigned entrypoint exists: $CARRIER_TREE/scripts/aienet0/settle-run.sh\n"
+  },
+  {
+    "name": "after-cutover",
+    "command": [
+      "bash",
+      "$OH_TREE/scripts/aienet0/controls.sh",
+      "--settlement-source",
+      "$OH_TREE"
+    ],
+    "expected": 0,
+    "observed": 0,
+    "stdout": "SETTLEMENT_SOURCE PASS: no Open Humanity settlement entrypoint\n",
+    "stderr": ""
+  },
+  {
+    "name": "restored-unsigned-mutant",
+    "command": [
+      "bash",
+      "$OH_TREE/scripts/aienet0/controls.sh",
+      "--settlement-source",
+      "$RESTORED_MUTANT"
+    ],
+    "expected": 1,
+    "observed": 1,
+    "stdout": "",
+    "stderr": "SETTLEMENT_SOURCE FAIL: retired unsigned entrypoint exists: $RESTORED_MUTANT/scripts/aienet0/settle-run.sh\n"
+  },
+  {
+    "name": "missing-root",
+    "command": [
+      "bash",
+      "$OH_TREE/scripts/aienet0/controls.sh",
+      "--settlement-source",
+      "$RESTORED_MUTANT/absent"
+    ],
+    "expected": 2,
+    "observed": 2,
+    "stdout": "",
+    "stderr": "SETTLEMENT_SOURCE INVALID: not an Open Humanity source root: $RESTORED_MUTANT/absent\n"
+  },
+  {
+    "name": "not-oh-root",
+    "command": [
+      "bash",
+      "$OH_TREE/scripts/aienet0/controls.sh",
+      "--settlement-source",
+      "/tmp"
+    ],
+    "expected": 2,
+    "observed": 2,
+    "stdout": "",
+    "stderr": "SETTLEMENT_SOURCE INVALID: not an Open Humanity source root: /tmp\n"
+  }
+]
+
+README executable wrong-pin snippet: expected rc1, observed rc1; no settlement evidence directory created; adapter invocation blocked by &&.
+
+CANONICAL ADAPTER COMMAND:
+RUN=$CARRIER_TREE/target/release/aienet0-run SERVE=$CARRIER_TREE/target/release/aienet0-serve LEDGER=$LEDGER LISTEN=127.0.0.1:39364 CONNECT=127.0.0.1:39364 KEYS=$FIXTURES/keys PINS=$FIXTURES/pins WKEYS=$FIXTURES/wkeys WPINS=$FIXTURES/wpins RECOMPUTE=$FIXTURES/recompute64 RECOMPUTE_SHA256=d2cd7382e0dc64e49498ae3b1ceffc73f1ddcbd3ddcf93e6d607498ccd58ea12 CARRIER_SOURCE_SHA=d7ea88b679aac9f69c875122f4c395c86233ec9b CARRIER_PROTOCOLS_SHA=7bfb4ee2fda4fee023a8f9b62639efedc1206391 bash "$PROTOCOLS/scripts/aienet0/settle-check.sh" "$FRESH_SETTLEMENT_EVIDENCE"
+Observed exit0; all nine controls PASS, both native-state mutants KILLED, ADAPTER controls failures=0. Persistent write-failure case explicitly exposes open escrow before operator recovery; test then clears fault and performs signed operator refund. No automatic recovery claim.
+
+WORKSPACE AND AUDIT:
+cargo test --workspace --verbose: exit101. Unchanged identity.rs151 test_vault_stdout_becomes_the_key failed ETXTBUSY (Text file busy); oh-core75 passed/1failed/1ignored. Full raw tool output artifact3793 retained locally. Not classified as clean default workspace PASS.
+cargo test --workspace --verbose -- --test-threads=1 && cargo audit: exit0. 154passed across22suites,3ignored; audit one existing allowed tokio1.53.1 RUSTSEC-2026-0386 unsound warning. Raw artifact3831. Serialization is a diagnostic command, not a committed gate/policy change or fixture fix.
+
+SCOPE:
+No Rust source/dependency, transport format, trust gate or shared skill contract changed. README directs callers explicitly to existing protocol owner, not a new repository ownership policy. Existing immutable .at-run/baseline evidence untouched. No shared-guide update required.
+CI was not yet run at receipt capture; final PR checks are reported separately.
+
+ARTIFACT pins.txt SHA256 7a353b5fb92ed7e4d228a36d9d23a48c2baa6f22f245089b5e8993b540c72b86
+HOST_TESTED adapter failure controls
+carrier-source d7ea88b679aac9f69c875122f4c395c86233ec9b
+carrier-protocols 7bfb4ee2fda4fee023a8f9b62639efedc1206391
+0338edb18a1fba9ecd7fa8ae294045184bfeb2e72530340017ce719acc682768  /tmp/ledger-auth-audit-bin
+9982c6cc8987ab68222c93794e08cd9c38bed1fbab19d105f1b047433412474c  $CARRIER_TREE/target/release/aienet0-run
+7be8f6dea03ef31c10247a0f07369a5d586b76013ea4244a3e948259969d964b  $CARRIER_TREE/target/release/aienet0-serve
+d2cd7382e0dc64e49498ae3b1ceffc73f1ddcbd3ddcf93e6d607498ccd58ea12  $FIXTURES/recompute64
+48174ed661807c7f1129e62c7237afc19a38c2c4114f642d38583d33cd2b439c  /tmp/ledger-auth-protocols/scripts/aienet0/settle-run.sh
+d4c60c5e9ba5b68824b4999531ef4a132976e650655a57e40311b671adcc5960  scripts/aienet0/settle-check.sh
+OpenSSL 3.0.13 30 Jan 2024 (Library: OpenSSL 3.0.13 30 Jan 2024)
+
+
+ARTIFACT CONTROL-SHA256SUMS SHA256 d34a1be5ab337023752844d6d6af36c7c1c14b852d93abb58d5e0997bfd5f6d5
+e9c0108288ae1e63fc8ece1dd15ca5b2e4073995e108e4bb912f14c2e3cb34c3  authority
+bbb8fea2d385c682ac6cb7d3996351855000be729efa8b2dd1230a7bf9ea2e40  quote
+7a353b5fb92ed7e4d228a36d9d23a48c2baa6f22f245089b5e8993b540c72b86  pins.txt
+b18fb11a26f11f0816721f5271ad43511060dce087d866ab4b074d1580f268a4  carrier-identities.out
+30d80ad39ff0fa599d2f0d312599ce14d4b1a845a4305ee59cfb9c589f167e7d  false-verified-stdout/adapter.out
+4f035512868bdbf77eef2156d45facf5cdc0d63148a1bf027082b2a51157cad8  forged-attestation/adapter.out
+275669e10cf44249d3b9f3008bc82426d2986e0c43da313f06ab2f198d5f5200  forged-receipt/adapter.out
+67374106f306f8d0322bdaf122d8ebdfb2ec5fe5f0d50bb22f4e641f23ccd9c0  honest/adapter.out
+774bfb26df86dbf454e7d59868d6ba2ade803eb4584ce67673df8019c91bcb1e  persistent-write-failure/adapter.out
+0dd22bae5bcc2e981f81603013cc34bbc0e94d3864dfc080b4e82d0a876840c5  reserve-before-write/adapter.out
+c13fb6775926fe6103f25bfc07f016aed5d1030367334429bd73dc63d4ed1a12  reserve-lost-response/adapter.out
+1b604c3a2c216e95018848cbec699b32eadf6208bbd6388d2f4b2db3238a1a04  settle-before-write/adapter.out
+e3e12f7286d12e7c452f6f5d9cf2d30665a46d081a37c787bc90393daf05603e  settle-lost-response/adapter.out
+dcfdfa879e643a33c1ad5642610071fa90eaef84562115467a134a1a9d8ffcc9  false-verified-stdout/honest/CONTROL-SHA256SUMS
+f523ebd9defdbe2fc413ac03131b2107f215c322a2bcb85a880eed17353225bf  forged-attestation/tampered-attestation/CONTROL-SHA256SUMS
+8df4829e12b44658e7819aef39773345df0bd3b24d3b80ee949baa2dbe71535b  forged-receipt/tampered-receipt/CONTROL-SHA256SUMS
+c09ef496cd4979c9b257b292d08cd507a4dcb1d90f13c2a68d8fcd1a08372eb7  honest/honest/CONTROL-SHA256SUMS
+110ba434c3a5c2f4ed91e53b90011780f646620070b8e47f62401ddfcf140b7d  mutants/no-artifact-admission/CONTROL-SHA256SUMS
+976848121a7e4f1d14cd9ed21b1ba5a325f6198078947d8564ff4c38982e2f86  mutants/no-reconciliation/CONTROL-SHA256SUMS
+26e4cf31c7238e4554848c3a9e926d7029e0cbf641cc659154620613d200ab1a  persistent-write-failure/honest/CONTROL-SHA256SUMS
+85fda5e6d0528b5ca2fe89104138e5fd25ffaa652bd70178581c8fea55dac0de  reserve-before-write/honest/CONTROL-SHA256SUMS
+d6b2a79681571bed5fd0c11aa17ec441b5c1adb584c47eed664199442ff88ba7  reserve-lost-response/honest/CONTROL-SHA256SUMS
+d63b3a2702cbb41dc1691102bfee00dd878134fed5d36edbf8858c1fdd33554f  settle-before-write/honest/CONTROL-SHA256SUMS
+d54b266b8826c4230faf7186d38d255cf8f81ef1a5ecac5d340bc1731f002849  settle-lost-response/honest/CONTROL-SHA256SUMS
+c6fd03f9a489e5a8d0ffe95296a8ac01db97b1168e43463f5e9823f6c9379d4d  mutants/no-artifact-admission.out
+2fc40939b6c21314fa7e841b2ae0eea33b536c641cfc383a20cedcae2fe85bb2  mutants/no-reconciliation.out
+110ba434c3a5c2f4ed91e53b90011780f646620070b8e47f62401ddfcf140b7d  mutants/no-artifact-admission/CONTROL-SHA256SUMS
+976848121a7e4f1d14cd9ed21b1ba5a325f6198078947d8564ff4c38982e2f86  mutants/no-reconciliation/CONTROL-SHA256SUMS
+
+
+ARTIFACT honest/adapter.out SHA256 67374106f306f8d0322bdaf122d8ebdfb2ec5fe5f0d50bb22f4e641f23ccd9c0
+# HOST_TESTED honest, 2026-10-28T12:16:50Z
+# ledger /tmp/ledger-auth-audit-bin sha256 0338edb18a1fba9ecd7fa8ae294045184bfeb2e72530340017ce719acc682768; run $CARRIER_TREE/target/release/aienet0-run sha256 9982c6cc8987ab68222c93794e08cd9c38bed1fbab19d105f1b047433412474c
+# OpenSSL 3.0.13 30 Jan 2024 (Library: OpenSSL 3.0.13 30 Jan 2024); test oracle only, no production key or independent-operator qualification
+$ $CARRIER_TREE/target/release/aienet0-run keys --keys $FIXTURES/keys
+coordinator.ed25519 85a5bb61058e42e8c6e83e4cc1c2238e1a75a1747e1fbd7452637dd5d3153ea5
+submitter.p256 03b2374b6b8edd9e96845c91ebf5f4c5c22da04d96113f443ac0c28ffc854e19db
+verifier.p256 03ccdafeea45e7c2cdb1d7686e08e8d15bfa1638ba8dddc0023e998721ffc37e36
+rc=0
+
+$ /tmp/ledger-auth-audit-bin --journal $FRESH_SETTLEMENT_EVIDENCE/honest/honest/journal prefund pf-1 requester 100 3046022100d201433542aba698858fe936416efa7fe1ac06736c13328b5ac816f0e87f3291022100f23566c0ba92afdb60524ff7b62d423437e8d950edb2e1858bb7f9dad52e9a33
+prefunded pf-1 requester 100
+rc=0
+
+$ $CARRIER_TREE/target/release/aienet0-run bundle --keys $FIXTURES/keys --out $FRESH_SETTLEMENT_EVIDENCE/honest/honest/out/job.an0b
+BUNDLE 9732394e3d4455801254f76fbaeab4b5abd54b183ebbefbe023a0fa26c326d70 $FRESH_SETTLEMENT_EVIDENCE/honest/honest/out/job.an0b
+rc=0
+
+# reservation intent JOB 9732394e3d4455801254f76fbaeab4b5abd54b183ebbefbe023a0fa26c326d70 JOURNAL $FRESH_SETTLEMENT_EVIDENCE/honest/honest/journal; reconcile this native job if the adapter is interrupted
+$ /tmp/ledger-auth-audit-bin --journal $FRESH_SETTLEMENT_EVIDENCE/honest/honest/journal reserve 9732394e3d4455801254f76fbaeab4b5abd54b183ebbefbe023a0fa26c326d70 requester provider verifier 40 bbb8fea2d385c682ac6cb7d3996351855000be729efa8b2dd1230a7bf9ea2e40 3045022100849c411322db632b31f2f73bb068a425f70697f69e99a0bb356085ca34900213022071ecabbed9f71d32a1c4ea32e1c8500b8023d25d00aa72e937f0db9984104e9d
+reserved 9732394e3d4455801254f76fbaeab4b5abd54b183ebbefbe023a0fa26c326d70 requester provider verifier 40
+rc=0
+
+# serve: $CARRIER_TREE/target/release/aienet0-serve  --connect 127.0.0.1:39364 --keys $FIXTURES/wkeys --pins $FIXTURES/wpins --state $FRESH_SETTLEMENT_EVIDENCE/honest/worker-state --connect-timeout 60
+$ $CARRIER_TREE/target/release/aienet0-run run --resend $FRESH_SETTLEMENT_EVIDENCE/honest/honest/out/job.an0b --listen 127.0.0.1:39364 --keys $FIXTURES/keys --pins $FIXTURES/pins --out $FRESH_SETTLEMENT_EVIDENCE/honest/honest/out --recompute $FIXTURES/recompute64 --recompute-sha256 d2cd7382e0dc64e49498ae3b1ceffc73f1ddcbd3ddcf93e6d607498ccd58ea12 --accept-timeout 90
+aienet0-run: dag_id=9732394e3d4455801254f76fbaeab4b5abd54b183ebbefbe023a0fa26c326d70 payload=0100400040004000000000a1e70001 bundle=$FRESH_SETTLEMENT_EVIDENCE/honest/honest/out/9732394e3d4455801254f76fbaeab4b5abd54b183ebbefbe023a0fa26c326d70.an0b coordinator=85a5bb61058e42e8c6e83e4cc1c2238e1a75a1747e1fbd7452637dd5d3153ea5
+aienet0-run: connection from 127.0.0.1:47538
+aienet0-run: receipt sha256=7495b505d2bf9e94d8aa011ff4b449fd71a7c3c4e3a443a4b625b9b0f5174fe6
+aienet0-run: executor output=b3be3072c0deeb5b85a224f0266b2aebbe93b147d657174ce57dfceb2df0c730 omega recompute=b3be3072c0deeb5b85a224f0266b2aebbe93b147d657174ce57dfceb2df0c730
+VERIFIED 9732394e3d4455801254f76fbaeab4b5abd54b183ebbefbe023a0fa26c326d70 7495b505d2bf9e94d8aa011ff4b449fd71a7c3c4e3a443a4b625b9b0f5174fe6 $FRESH_SETTLEMENT_EVIDENCE/honest/honest/out/9732394e3d4455801254f76fbaeab4b5abd54b183ebbefbe023a0fa26c326d70.mjr1
+rc=0
+
+# serve rc=0 stdout: RECEIPT 9732394e3d4455801254f76fbaeab4b5abd54b183ebbefbe023a0fa26c326d70 7495b505d2bf9e94d8aa011ff4b449fd71a7c3c4e3a443a4b625b9b0f5174fe6 output=b3be3072c0deeb5b85a224f0266b2aebbe93b147d657174ce57dfceb2df0c730 executor=037724a5ac3d6c32ffe9bb283ac2cf39eda35d81f92adc3c5524413d1b36c471ca time_ms=1
+# serve stderr: aienet0-serve: session up, coordinator 85a5bb61058e42e8c6e83e4cc1c2238e1a75a1747e1fbd7452637dd5d3153ea5 aienet0-serve: executing dag_id=9732394e3d4455801254f76fbaeab4b5abd54b183ebbefbe023a0fa26c326d70 matmul_u32 m=64 k=64 n=64 seed=2716270593 
+$ $CARRIER_TREE/target/release/aienet0-run check --bundle $FRESH_SETTLEMENT_EVIDENCE/honest/honest/out/9732394e3d4455801254f76fbaeab4b5abd54b183ebbefbe023a0fa26c326d70.an0b --mjr1 $FRESH_SETTLEMENT_EVIDENCE/honest/honest/out/9732394e3d4455801254f76fbaeab4b5abd54b183ebbefbe023a0fa26c326d70.mjr1 --mjv $FRESH_SETTLEMENT_EVIDENCE/honest/honest/out/9732394e3d4455801254f76fbaeab4b5abd54b183ebbefbe023a0fa26c326d70.mjv --keys $FIXTURES/keys --pins $FIXTURES/pins
+CHECKED 9732394e3d4455801254f76fbaeab4b5abd54b183ebbefbe023a0fa26c326d70 7495b505d2bf9e94d8aa011ff4b449fd71a7c3c4e3a443a4b625b9b0f5174fe6
+rc=0
+
+# decision: independently rechecked artifacts 9732394e3d4455801254f76fbaeab4b5abd54b183ebbefbe023a0fa26c326d70 -> signed settle
+$ /tmp/ledger-auth-audit-bin --journal $FRESH_SETTLEMENT_EVIDENCE/honest/honest/journal settle 9732394e3d4455801254f76fbaeab4b5abd54b183ebbefbe023a0fa26c326d70 7495b505d2bf9e94d8aa011ff4b449fd71a7c3c4e3a443a4b625b9b0f5174fe6 27 3 10 e1287cb1fdb57180e3e77820f9dfc7bdc4ab9abf94cde9d87e0a033163794d68 fedd16bce752035a7d7e15bf7a1e5bf5ed0cbf9b6b3037ecd71bc027d33dbeb7 304502201af8628db57d0c12ba3b407f3cd898c6daf167a6ed9e557a439e3923cbe60cba022100a774c2e38905816c9eb5b074934de7e4cc049e4d3151a1c418f5fd69dc9d9581 30450221008ffecfc5aa4d7e3cc90645a0cb2c83340a02b9cb2c74b7a0708560a6bf01925002202715d8b38ebd8bf45a51948b2dd9a148ad7e079f647cd364f0c5d150173c1625
+settled 9732394e3d4455801254f76fbaeab4b5abd54b183ebbefbe023a0fa26c326d70 7495b505d2bf9e94d8aa011ff4b449fd71a7c3c4e3a443a4b625b9b0f5174fe6 27 3 10
+rc=0
+
+$ /tmp/ledger-auth-audit-bin --journal $FRESH_SETTLEMENT_EVIDENCE/honest/honest/journal settle 9732394e3d4455801254f76fbaeab4b5abd54b183ebbefbe023a0fa26c326d70 7495b505d2bf9e94d8aa011ff4b449fd71a7c3c4e3a443a4b625b9b0f5174fe6 27 3 10 e1287cb1fdb57180e3e77820f9dfc7bdc4ab9abf94cde9d87e0a033163794d68 fedd16bce752035a7d7e15bf7a1e5bf5ed0cbf9b6b3037ecd71bc027d33dbeb7 30450221008c0492c6f9affe0ff9679689fcf63fe9b55ea81219949182e7d7622dd7bf7a4602207af4fc347a41ab9dbc002f87ed26cb201ed42ad1b7b7c25fe080f7c54a3cd8e7 30450220140bb085b295b3a5a63c13f50464e48e636044e2d2f5052c0c0470007dccfdb3022100e85cfcea3d7070be7bf893c675fbeb9c8bd06fee9d784a3da2cc6d180447061a
+already-settled 9732394e3d4455801254f76fbaeab4b5abd54b183ebbefbe023a0fa26c326d70 7495b505d2bf9e94d8aa011ff4b449fd71a7c3c4e3a443a4b625b9b0f5174fe6 27 3 10
+rc=0
+
+# journal sha256 before repeat c8632ccf4660e64c8bfbee970d65b2867f49e31bd5e7df0ccbc54d57fa6a9ce7 after c8632ccf4660e64c8bfbee970d65b2867f49e31bd5e7df0ccbc54d57fa6a9ce7
+$ /tmp/ledger-auth-audit-bin --journal $FRESH_SETTLEMENT_EVIDENCE/honest/honest/journal audit
+audit ok records 4 head 11c6f83a887672f8eca346b0bc465ca1d277217f2580fe77f5d7a2dff2c9b3ca accounts 3 jobs 1 open 0 settled 1 refunded 0 prefunded 100 balances 100 escrow 0
+rc=0
+
+$ /tmp/ledger-auth-audit-bin --journal $FRESH_SETTLEMENT_EVIDENCE/honest/honest/journal show 9732394e3d4455801254f76fbaeab4b5abd54b183ebbefbe023a0fa26c326d70
+job 9732394e3d4455801254f76fbaeab4b5abd54b183ebbefbe023a0fa26c326d70 settled requester provider verifier 40 7495b505d2bf9e94d8aa011ff4b449fd71a7c3c4e3a443a4b625b9b0f5174fe6 27 3 10
+rc=0
+
+$ /tmp/ledger-auth-audit-bin --journal $FRESH_SETTLEMENT_EVIDENCE/honest/honest/journal balance requester
+balance requester 70
+rc=0
+
+$ /tmp/ledger-auth-audit-bin --journal $FRESH_SETTLEMENT_EVIDENCE/honest/honest/journal balance provider
+balance provider 27
+rc=0
+
+$ /tmp/ledger-auth-audit-bin --journal $FRESH_SETTLEMENT_EVIDENCE/honest/honest/journal balance verifier
+balance verifier 3
+rc=0
+
+# decision settled, balances requester provider verifier: 70 27 3, settle records: 1
+# RESULT PASS honest: settled, balances 70 27 3
+RESULT PASS honest: settled 9732394e3d4455801254f76fbaeab4b5abd54b183ebbefbe023a0fa26c326d70, balances requester provider verifier 70 27 3
+
+
+ARTIFACT forged-receipt/adapter.out SHA256 275669e10cf44249d3b9f3008bc82426d2986e0c43da313f06ab2f198d5f5200
+# HOST_TESTED tampered-receipt, 2026-10-28T12:16:51Z
+# ledger /tmp/ledger-auth-audit-bin sha256 0338edb18a1fba9ecd7fa8ae294045184bfeb2e72530340017ce719acc682768; run $CARRIER_TREE/target/release/aienet0-run sha256 9982c6cc8987ab68222c93794e08cd9c38bed1fbab19d105f1b047433412474c
+# OpenSSL 3.0.13 30 Jan 2024 (Library: OpenSSL 3.0.13 30 Jan 2024); test oracle only, no production key or independent-operator qualification
+$ $CARRIER_TREE/target/release/aienet0-run keys --keys $FIXTURES/keys
+coordinator.ed25519 85a5bb61058e42e8c6e83e4cc1c2238e1a75a1747e1fbd7452637dd5d3153ea5
+submitter.p256 03b2374b6b8edd9e96845c91ebf5f4c5c22da04d96113f443ac0c28ffc854e19db
+verifier.p256 03ccdafeea45e7c2cdb1d7686e08e8d15bfa1638ba8dddc0023e998721ffc37e36
+rc=0
+
+$ /tmp/ledger-auth-audit-bin --journal $FRESH_SETTLEMENT_EVIDENCE/forged-receipt/tampered-receipt/journal prefund pf-1 requester 100 3046022100858929ad1d1c0f7585bb356d7c093c34ef442d0d9d5b0ee4cd50074ade3b57bc022100868e2e768a567ecf25955f2970c33b580a4f8a26703c82ae3e48621abaf9dfa8
+prefunded pf-1 requester 100
+rc=0
+
+$ $CARRIER_TREE/target/release/aienet0-run bundle --keys $FIXTURES/keys --out $FRESH_SETTLEMENT_EVIDENCE/forged-receipt/tampered-receipt/out/job.an0b
+BUNDLE 0a0d5a56278d81931303449f486580defb6f43f2e800d1d43eb7dd7ab098afb0 $FRESH_SETTLEMENT_EVIDENCE/forged-receipt/tampered-receipt/out/job.an0b
+rc=0
+
+# reservation intent JOB 0a0d5a56278d81931303449f486580defb6f43f2e800d1d43eb7dd7ab098afb0 JOURNAL $FRESH_SETTLEMENT_EVIDENCE/forged-receipt/tampered-receipt/journal; reconcile this native job if the adapter is interrupted
+$ /tmp/ledger-auth-audit-bin --journal $FRESH_SETTLEMENT_EVIDENCE/forged-receipt/tampered-receipt/journal reserve 0a0d5a56278d81931303449f486580defb6f43f2e800d1d43eb7dd7ab098afb0 requester provider verifier 40 bbb8fea2d385c682ac6cb7d3996351855000be729efa8b2dd1230a7bf9ea2e40 3044022031df19c376e679757d48b3ed9af7c5fa113f982b87204960f117733839f02718022055a5fb38cbb6c2463660f23683bd8a9482db257e6f78bf6b5fcce81f3cdb0eb8
+reserved 0a0d5a56278d81931303449f486580defb6f43f2e800d1d43eb7dd7ab098afb0 requester provider verifier 40
+rc=0
+
+# serve: $CARRIER_TREE/target/release/aienet0-serve --misbehave tamper-receipt --connect 127.0.0.1:39364 --keys $FIXTURES/wkeys --pins $FIXTURES/wpins --state $FRESH_SETTLEMENT_EVIDENCE/forged-receipt/worker-state --connect-timeout 60
+$ $CARRIER_TREE/target/release/aienet0-run run --resend $FRESH_SETTLEMENT_EVIDENCE/forged-receipt/tampered-receipt/out/job.an0b --listen 127.0.0.1:39364 --keys $FIXTURES/keys --pins $FIXTURES/pins --out $FRESH_SETTLEMENT_EVIDENCE/forged-receipt/tampered-receipt/out --recompute $FIXTURES/recompute64 --recompute-sha256 d2cd7382e0dc64e49498ae3b1ceffc73f1ddcbd3ddcf93e6d607498ccd58ea12 --accept-timeout 90
+aienet0-run: dag_id=0a0d5a56278d81931303449f486580defb6f43f2e800d1d43eb7dd7ab098afb0 payload=0100400040004000000000a1e70001 bundle=$FRESH_SETTLEMENT_EVIDENCE/forged-receipt/tampered-receipt/out/0a0d5a56278d81931303449f486580defb6f43f2e800d1d43eb7dd7ab098afb0.an0b coordinator=85a5bb61058e42e8c6e83e4cc1c2238e1a75a1747e1fbd7452637dd5d3153ea5
+aienet0-run: connection from 127.0.0.1:47550
+aienet0-run: receipt sha256=e6fa5044793021a9dc4c1ed127b0f304a963327f644baf49fb9b47ab59ebb939
+aienet0-run: REFUSED MJB_FORGED_RECEIPT
+REFUSED MJB_FORGED_RECEIPT
+rc=12
+
+# serve rc=0 stdout: RECEIPT 0a0d5a56278d81931303449f486580defb6f43f2e800d1d43eb7dd7ab098afb0 e6fa5044793021a9dc4c1ed127b0f304a963327f644baf49fb9b47ab59ebb939 output=b3be3072c0deeb5b85a224f0266b2aebbe93b147d657174ce57dfceb2df0c730 executor=037724a5ac3d6c32ffe9bb283ac2cf39eda35d81f92adc3c5524413d1b36c471ca time_ms=1
+# serve stderr: aienet0-serve: *** TEST MODE --misbehave tamper-receipt: this worker will lie *** aienet0-serve: session up, coordinator 85a5bb61058e42e8c6e83e4cc1c2238e1a75a1747e1fbd7452637dd5d3153ea5 aienet0-serve: executing dag_id=0a0d5a56278d81931303449f486580defb6f43f2e800d1d43eb7dd7ab098afb0 matmul_u32 m=64 k=64 n=64 seed=2716270593 
+# decision: not authorized (run rc=12 check rc=not-run) -> signed refund
+$ /tmp/ledger-auth-audit-bin --journal $FRESH_SETTLEMENT_EVIDENCE/forged-receipt/tampered-receipt/journal refund 0a0d5a56278d81931303449f486580defb6f43f2e800d1d43eb7dd7ab098afb0 3046022100ec99b55a0569371e8737a0654c1c08fa0a6a972740ab6baa5908239d42a76e3c022100dc436b3b0c432bbf4e817df531bd7b55bbee9fbf015572795d52c56622da3615
+refunded 0a0d5a56278d81931303449f486580defb6f43f2e800d1d43eb7dd7ab098afb0
+rc=0
+
+$ /tmp/ledger-auth-audit-bin --journal $FRESH_SETTLEMENT_EVIDENCE/forged-receipt/tampered-receipt/journal audit
+audit ok records 4 head d69b325d21c8188af33ecc1fa3beec1efb84d4cc9fecb7aeee804bd42cf52ba5 accounts 3 jobs 1 open 0 settled 0 refunded 1 prefunded 100 balances 100 escrow 0
+rc=0
+
+$ /tmp/ledger-auth-audit-bin --journal $FRESH_SETTLEMENT_EVIDENCE/forged-receipt/tampered-receipt/journal show 0a0d5a56278d81931303449f486580defb6f43f2e800d1d43eb7dd7ab098afb0
+job 0a0d5a56278d81931303449f486580defb6f43f2e800d1d43eb7dd7ab098afb0 refunded requester provider verifier 40
+rc=0
+
+$ /tmp/ledger-auth-audit-bin --journal $FRESH_SETTLEMENT_EVIDENCE/forged-receipt/tampered-receipt/journal balance requester
+balance requester 100
+rc=0
+
+$ /tmp/ledger-auth-audit-bin --journal $FRESH_SETTLEMENT_EVIDENCE/forged-receipt/tampered-receipt/journal balance provider
+balance provider 0
+rc=0
+
+$ /tmp/ledger-auth-audit-bin --journal $FRESH_SETTLEMENT_EVIDENCE/forged-receipt/tampered-receipt/journal balance verifier
+balance verifier 0
+rc=0
+
+# decision refunded, balances requester provider verifier: 100 0 0, settle records: 0
+# RESULT PASS tampered-receipt: refunded, balances 100 0 0
+RESULT PASS tampered-receipt: refunded 0a0d5a56278d81931303449f486580defb6f43f2e800d1d43eb7dd7ab098afb0, balances requester provider verifier 100 0 0
+
+
+ARTIFACT forged-attestation/adapter.out SHA256 4f035512868bdbf77eef2156d45facf5cdc0d63148a1bf027082b2a51157cad8
+# HOST_TESTED tampered-attestation, 2026-10-28T12:16:51Z
+# ledger /tmp/ledger-auth-audit-bin sha256 0338edb18a1fba9ecd7fa8ae294045184bfeb2e72530340017ce719acc682768; run $CARRIER_TREE/target/release/aienet0-run sha256 9982c6cc8987ab68222c93794e08cd9c38bed1fbab19d105f1b047433412474c
+# OpenSSL 3.0.13 30 Jan 2024 (Library: OpenSSL 3.0.13 30 Jan 2024); test oracle only, no production key or independent-operator qualification
+$ $CARRIER_TREE/target/release/aienet0-run keys --keys $FIXTURES/keys
+coordinator.ed25519 85a5bb61058e42e8c6e83e4cc1c2238e1a75a1747e1fbd7452637dd5d3153ea5
+submitter.p256 03b2374b6b8edd9e96845c91ebf5f4c5c22da04d96113f443ac0c28ffc854e19db
+verifier.p256 03ccdafeea45e7c2cdb1d7686e08e8d15bfa1638ba8dddc0023e998721ffc37e36
+rc=0
+
+$ /tmp/ledger-auth-audit-bin --journal $FRESH_SETTLEMENT_EVIDENCE/forged-attestation/tampered-attestation/journal prefund pf-1 requester 100 3044022032d586888c7c7d85e6776cb898f63269cae7b42de06d4f48e9a694bbe596bf1802205f5e725a5d0cd41bf820633cec5d77585a4624d3558eaccf758b0f2cd0f5829f
+prefunded pf-1 requester 100
+rc=0
+
+$ $CARRIER_TREE/target/release/aienet0-run bundle --keys $FIXTURES/keys --out $FRESH_SETTLEMENT_EVIDENCE/forged-attestation/tampered-attestation/out/job.an0b
+BUNDLE 7bcd774cb284ee7d56493311c5e1f8a6e1db903806e3736ab27837120179d6ca $FRESH_SETTLEMENT_EVIDENCE/forged-attestation/tampered-attestation/out/job.an0b
+rc=0
+
+# reservation intent JOB 7bcd774cb284ee7d56493311c5e1f8a6e1db903806e3736ab27837120179d6ca JOURNAL $FRESH_SETTLEMENT_EVIDENCE/forged-attestation/tampered-attestation/journal; reconcile this native job if the adapter is interrupted
+$ /tmp/ledger-auth-audit-bin --journal $FRESH_SETTLEMENT_EVIDENCE/forged-attestation/tampered-attestation/journal reserve 7bcd774cb284ee7d56493311c5e1f8a6e1db903806e3736ab27837120179d6ca requester provider verifier 40 bbb8fea2d385c682ac6cb7d3996351855000be729efa8b2dd1230a7bf9ea2e40 3045022043d2aff6c2fcca85175471ce55166b267fbf028b1f69518c7f08ddd98738b845022100d6b7c5f86d71a5f387e4031b0fbea3188f83074ea8312b7d94269dd225086576
+reserved 7bcd774cb284ee7d56493311c5e1f8a6e1db903806e3736ab27837120179d6ca requester provider verifier 40
+rc=0
+
+# serve: $CARRIER_TREE/target/release/aienet0-serve  --connect 127.0.0.1:39364 --keys $FIXTURES/wkeys --pins $FIXTURES/wpins --state $FRESH_SETTLEMENT_EVIDENCE/forged-attestation/worker-state --connect-timeout 60
+$ $CARRIER_TREE/target/release/aienet0-run run --resend $FRESH_SETTLEMENT_EVIDENCE/forged-attestation/tampered-attestation/out/job.an0b --listen 127.0.0.1:39364 --keys $FIXTURES/keys --pins $FIXTURES/pins --out $FRESH_SETTLEMENT_EVIDENCE/forged-attestation/tampered-attestation/out --recompute $FIXTURES/recompute64 --recompute-sha256 d2cd7382e0dc64e49498ae3b1ceffc73f1ddcbd3ddcf93e6d607498ccd58ea12 --accept-timeout 90
+aienet0-run: dag_id=7bcd774cb284ee7d56493311c5e1f8a6e1db903806e3736ab27837120179d6ca payload=0100400040004000000000a1e70001 bundle=$FRESH_SETTLEMENT_EVIDENCE/forged-attestation/tampered-attestation/out/7bcd774cb284ee7d56493311c5e1f8a6e1db903806e3736ab27837120179d6ca.an0b coordinator=85a5bb61058e42e8c6e83e4cc1c2238e1a75a1747e1fbd7452637dd5d3153ea5
+aienet0-run: connection from 127.0.0.1:47564
+aienet0-run: receipt sha256=f021ea3a355446ff6e8be2753a003c289e37849fbc10d4c4725e0c277e2fbf97
+aienet0-run: executor output=b3be3072c0deeb5b85a224f0266b2aebbe93b147d657174ce57dfceb2df0c730 omega recompute=b3be3072c0deeb5b85a224f0266b2aebbe93b147d657174ce57dfceb2df0c730
+VERIFIED 7bcd774cb284ee7d56493311c5e1f8a6e1db903806e3736ab27837120179d6ca f021ea3a355446ff6e8be2753a003c289e37849fbc10d4c4725e0c277e2fbf97 $FRESH_SETTLEMENT_EVIDENCE/forged-attestation/tampered-attestation/out/7bcd774cb284ee7d56493311c5e1f8a6e1db903806e3736ab27837120179d6ca.mjr1
+rc=0
+
+# serve rc=0 stdout: RECEIPT 7bcd774cb284ee7d56493311c5e1f8a6e1db903806e3736ab27837120179d6ca f021ea3a355446ff6e8be2753a003c289e37849fbc10d4c4725e0c277e2fbf97 output=b3be3072c0deeb5b85a224f0266b2aebbe93b147d657174ce57dfceb2df0c730 executor=037724a5ac3d6c32ffe9bb283ac2cf39eda35d81f92adc3c5524413d1b36c471ca time_ms=1
+# serve stderr: aienet0-serve: session up, coordinator 85a5bb61058e42e8c6e83e4cc1c2238e1a75a1747e1fbd7452637dd5d3153ea5 aienet0-serve: executing dag_id=7bcd774cb284ee7d56493311c5e1f8a6e1db903806e3736ab27837120179d6ca matmul_u32 m=64 k=64 n=64 seed=2716270593 
+$ $CARRIER_TREE/target/release/aienet0-run check --bundle $FRESH_SETTLEMENT_EVIDENCE/forged-attestation/tampered-attestation/out/7bcd774cb284ee7d56493311c5e1f8a6e1db903806e3736ab27837120179d6ca.an0b --mjr1 $FRESH_SETTLEMENT_EVIDENCE/forged-attestation/tampered-attestation/out/7bcd774cb284ee7d56493311c5e1f8a6e1db903806e3736ab27837120179d6ca.mjr1 --mjv $FRESH_SETTLEMENT_EVIDENCE/forged-attestation/tampered-attestation/out/7bcd774cb284ee7d56493311c5e1f8a6e1db903806e3736ab27837120179d6ca.mjv --keys $FIXTURES/keys --pins $FIXTURES/pins
+aienet0-run: REFUSED AN0_BAD_COUNTERSIGN
+REFUSED AN0_BAD_COUNTERSIGN
+rc=14
+
+# decision: not authorized (run rc=0 check rc=14) -> signed refund
+$ /tmp/ledger-auth-audit-bin --journal $FRESH_SETTLEMENT_EVIDENCE/forged-attestation/tampered-attestation/journal refund 7bcd774cb284ee7d56493311c5e1f8a6e1db903806e3736ab27837120179d6ca 3045022100af5afc4d818645f409346ac5ef58ad0a94e5c931e826229be9cc0895dde86d1302200e95399dce2384752f588f14dd8aa7cac1f2021f0b35cc91a8ea421ac00b32a9
+refunded 7bcd774cb284ee7d56493311c5e1f8a6e1db903806e3736ab27837120179d6ca
+rc=0
+
+$ /tmp/ledger-auth-audit-bin --journal $FRESH_SETTLEMENT_EVIDENCE/forged-attestation/tampered-attestation/journal audit
+audit ok records 4 head a3e235eb29c022885ca2bab5ef370228b94672bf76479a5ad38ba528d7b174ab accounts 3 jobs 1 open 0 settled 0 refunded 1 prefunded 100 balances 100 escrow 0
+rc=0
+
+$ /tmp/ledger-auth-audit-bin --journal $FRESH_SETTLEMENT_EVIDENCE/forged-attestation/tampered-attestation/journal show 7bcd774cb284ee7d56493311c5e1f8a6e1db903806e3736ab27837120179d6ca
+job 7bcd774cb284ee7d56493311c5e1f8a6e1db903806e3736ab27837120179d6ca refunded requester provider verifier 40
+rc=0
+
+$ /tmp/ledger-auth-audit-bin --journal $FRESH_SETTLEMENT_EVIDENCE/forged-attestation/tampered-attestation/journal balance requester
+balance requester 100
+rc=0
+
+$ /tmp/ledger-auth-audit-bin --journal $FRESH_SETTLEMENT_EVIDENCE/forged-attestation/tampered-attestation/journal balance provider
+balance provider 0
+rc=0
+
+$ /tmp/ledger-auth-audit-bin --journal $FRESH_SETTLEMENT_EVIDENCE/forged-attestation/tampered-attestation/journal balance verifier
+balance verifier 0
+rc=0
+
+# decision refunded, balances requester provider verifier: 100 0 0, settle records: 0
+# RESULT PASS tampered-attestation: refunded, balances 100 0 0
+RESULT PASS tampered-attestation: refunded 7bcd774cb284ee7d56493311c5e1f8a6e1db903806e3736ab27837120179d6ca, balances requester provider verifier 100 0 0
+
+
+ARTIFACT false-verified-stdout/adapter.out SHA256 30d80ad39ff0fa599d2f0d312599ce14d4b1a845a4305ee59cfb9c589f167e7d
+# HOST_TESTED honest, 2026-10-28T12:16:52Z
+# ledger /tmp/ledger-auth-audit-bin sha256 0338edb18a1fba9ecd7fa8ae294045184bfeb2e72530340017ce719acc682768; run /tmp/tmp.2q5c6Xmo0l/run sha256 ad5c0cead3fd634b19e1d1e5edb3ab111ac981dfeb68ba1f8e7e4907b114d7d5
+# OpenSSL 3.0.13 30 Jan 2024 (Library: OpenSSL 3.0.13 30 Jan 2024); test oracle only, no production key or independent-operator qualification
+$ /tmp/tmp.2q5c6Xmo0l/run keys --keys $FIXTURES/keys
+coordinator.ed25519 85a5bb61058e42e8c6e83e4cc1c2238e1a75a1747e1fbd7452637dd5d3153ea5
+submitter.p256 03b2374b6b8edd9e96845c91ebf5f4c5c22da04d96113f443ac0c28ffc854e19db
+verifier.p256 03ccdafeea45e7c2cdb1d7686e08e8d15bfa1638ba8dddc0023e998721ffc37e36
+rc=0
+
+$ /tmp/ledger-auth-audit-bin --journal $FRESH_SETTLEMENT_EVIDENCE/false-verified-stdout/honest/journal prefund pf-1 requester 100 3046022100f0a3a4395f173a8a157901be6f80c32595141909a63f1b31bd99cb8ce783c76c022100dc469712892ceece3b3a3ab2046c6ee0da853170188a465945a09c28f7c1de90
+prefunded pf-1 requester 100
+rc=0
+
+$ /tmp/tmp.2q5c6Xmo0l/run bundle --keys $FIXTURES/keys --out $FRESH_SETTLEMENT_EVIDENCE/false-verified-stdout/honest/out/job.an0b
+BUNDLE 894c068c1746eae88b8a4ed5d310c07a47103fa9a807b39034c7630523c05154 $FRESH_SETTLEMENT_EVIDENCE/false-verified-stdout/honest/out/job.an0b
+rc=0
+
+# reservation intent JOB 894c068c1746eae88b8a4ed5d310c07a47103fa9a807b39034c7630523c05154 JOURNAL $FRESH_SETTLEMENT_EVIDENCE/false-verified-stdout/honest/journal; reconcile this native job if the adapter is interrupted
+$ /tmp/ledger-auth-audit-bin --journal $FRESH_SETTLEMENT_EVIDENCE/false-verified-stdout/honest/journal reserve 894c068c1746eae88b8a4ed5d310c07a47103fa9a807b39034c7630523c05154 requester provider verifier 40 bbb8fea2d385c682ac6cb7d3996351855000be729efa8b2dd1230a7bf9ea2e40 30440220272574e3de76b981e901ceb6350b676aa1c0a7e032eb02e2699a29b0477c171f0220390075fb805c59a58092e54db7c6ac728747c2a4a0662de48185fc2c15a462fe
+reserved 894c068c1746eae88b8a4ed5d310c07a47103fa9a807b39034c7630523c05154 requester provider verifier 40
+rc=0
+
+# serve: $CARRIER_TREE/target/release/aienet0-serve  --connect 127.0.0.1:39364 --keys $FIXTURES/wkeys --pins $FIXTURES/wpins --state $FRESH_SETTLEMENT_EVIDENCE/false-verified-stdout/worker-state --connect-timeout 60
+$ /tmp/tmp.2q5c6Xmo0l/run run --resend $FRESH_SETTLEMENT_EVIDENCE/false-verified-stdout/honest/out/job.an0b --listen 127.0.0.1:39364 --keys $FIXTURES/keys --pins $FIXTURES/pins --out $FRESH_SETTLEMENT_EVIDENCE/false-verified-stdout/honest/out --recompute $FIXTURES/recompute64 --recompute-sha256 d2cd7382e0dc64e49498ae3b1ceffc73f1ddcbd3ddcf93e6d607498ccd58ea12 --accept-timeout 90
+aienet0-run: dag_id=894c068c1746eae88b8a4ed5d310c07a47103fa9a807b39034c7630523c05154 payload=0100400040004000000000a1e70001 bundle=$FRESH_SETTLEMENT_EVIDENCE/false-verified-stdout/honest/out/894c068c1746eae88b8a4ed5d310c07a47103fa9a807b39034c7630523c05154.an0b coordinator=85a5bb61058e42e8c6e83e4cc1c2238e1a75a1747e1fbd7452637dd5d3153ea5
+aienet0-run: connection from 127.0.0.1:47572
+aienet0-run: receipt sha256=d9d5380d4d481a7da4d05b651aa821aca24425c4d1af2127a508cdf1537739ba
+aienet0-run: executor output=b3be3072c0deeb5b85a224f0266b2aebbe93b147d657174ce57dfceb2df0c730 omega recompute=b3be3072c0deeb5b85a224f0266b2aebbe93b147d657174ce57dfceb2df0c730
+VERIFIED 894c068c1746eae88b8a4ed5d310c07a47103fa9a807b39034c7630523c05154 0000000000000000000000000000000000000000000000000000000000000000
+rc=0
+
+# serve rc=0 stdout: RECEIPT 894c068c1746eae88b8a4ed5d310c07a47103fa9a807b39034c7630523c05154 d9d5380d4d481a7da4d05b651aa821aca24425c4d1af2127a508cdf1537739ba output=b3be3072c0deeb5b85a224f0266b2aebbe93b147d657174ce57dfceb2df0c730 executor=037724a5ac3d6c32ffe9bb283ac2cf39eda35d81f92adc3c5524413d1b36c471ca time_ms=1
+# serve stderr: aienet0-serve: session up, coordinator 85a5bb61058e42e8c6e83e4cc1c2238e1a75a1747e1fbd7452637dd5d3153ea5 aienet0-serve: executing dag_id=894c068c1746eae88b8a4ed5d310c07a47103fa9a807b39034c7630523c05154 matmul_u32 m=64 k=64 n=64 seed=2716270593 
+$ /tmp/tmp.2q5c6Xmo0l/run check --bundle $FRESH_SETTLEMENT_EVIDENCE/false-verified-stdout/honest/out/894c068c1746eae88b8a4ed5d310c07a47103fa9a807b39034c7630523c05154.an0b --mjr1 $FRESH_SETTLEMENT_EVIDENCE/false-verified-stdout/honest/out/894c068c1746eae88b8a4ed5d310c07a47103fa9a807b39034c7630523c05154.mjr1 --mjv $FRESH_SETTLEMENT_EVIDENCE/false-verified-stdout/honest/out/894c068c1746eae88b8a4ed5d310c07a47103fa9a807b39034c7630523c05154.mjv --keys $FIXTURES/keys --pins $FIXTURES/pins
+CHECKED 894c068c1746eae88b8a4ed5d310c07a47103fa9a807b39034c7630523c05154 d9d5380d4d481a7da4d05b651aa821aca24425c4d1af2127a508cdf1537739ba
+rc=0
+
+# decision: not authorized (run rc=0 check rc=0) -> signed refund
+$ /tmp/ledger-auth-audit-bin --journal $FRESH_SETTLEMENT_EVIDENCE/false-verified-stdout/honest/journal refund 894c068c1746eae88b8a4ed5d310c07a47103fa9a807b39034c7630523c05154 3045022100dc5178a7d683a76da21eb08f91560ba91bd05b1271c52d85a908e61561ff392f022029da0ffe0c07dfe95bef8cdd04dfa79ee269ba5b414c2718581e6ff2af19e6dd
+refunded 894c068c1746eae88b8a4ed5d310c07a47103fa9a807b39034c7630523c05154
+rc=0
+
+$ /tmp/ledger-auth-audit-bin --journal $FRESH_SETTLEMENT_EVIDENCE/false-verified-stdout/honest/journal audit
+audit ok records 4 head 30e2ac2d791c41ef1fd3be5bd21c3870e27684b515edfdb25ee5ebf3e2ff3864 accounts 3 jobs 1 open 0 settled 0 refunded 1 prefunded 100 balances 100 escrow 0
+rc=0
+
+$ /tmp/ledger-auth-audit-bin --journal $FRESH_SETTLEMENT_EVIDENCE/false-verified-stdout/honest/journal show 894c068c1746eae88b8a4ed5d310c07a47103fa9a807b39034c7630523c05154
+job 894c068c1746eae88b8a4ed5d310c07a47103fa9a807b39034c7630523c05154 refunded requester provider verifier 40
+rc=0
+
+$ /tmp/ledger-auth-audit-bin --journal $FRESH_SETTLEMENT_EVIDENCE/false-verified-stdout/honest/journal balance requester
+balance requester 100
+rc=0
+
+$ /tmp/ledger-auth-audit-bin --journal $FRESH_SETTLEMENT_EVIDENCE/false-verified-stdout/honest/journal balance provider
+balance provider 0
+rc=0
+
+$ /tmp/ledger-auth-audit-bin --journal $FRESH_SETTLEMENT_EVIDENCE/false-verified-stdout/honest/journal balance verifier
+balance verifier 0
+rc=0
+
+# decision refunded, balances requester provider verifier: 100 0 0, settle records: 0
+# RESULT FAIL honest: decision refunded, want settled
+RESULT FAIL honest: decision refunded, want settled
+RECOVERY closed JOB 894c068c1746eae88b8a4ed5d310c07a47103fa9a807b39034c7630523c05154 phase refunded JOURNAL $FRESH_SETTLEMENT_EVIDENCE/false-verified-stdout/honest/journal
+
+
+ARTIFACT reserve-before-write/adapter.out SHA256 0dd22bae5bcc2e981f81603013cc34bbc0e94d3864dfc080b4e82d0a876840c5
+# HOST_TESTED honest, 2026-10-28T12:16:52Z
+# ledger /tmp/tmp.2q5c6Xmo0l/ledger sha256 308f4e1a567f77834ca577601b6947fcd46fb0b0b2242c4630231f6bb90d7b42; run $CARRIER_TREE/target/release/aienet0-run sha256 9982c6cc8987ab68222c93794e08cd9c38bed1fbab19d105f1b047433412474c
+# OpenSSL 3.0.13 30 Jan 2024 (Library: OpenSSL 3.0.13 30 Jan 2024); test oracle only, no production key or independent-operator qualification
+$ $CARRIER_TREE/target/release/aienet0-run keys --keys $FIXTURES/keys
+coordinator.ed25519 85a5bb61058e42e8c6e83e4cc1c2238e1a75a1747e1fbd7452637dd5d3153ea5
+submitter.p256 03b2374b6b8edd9e96845c91ebf5f4c5c22da04d96113f443ac0c28ffc854e19db
+verifier.p256 03ccdafeea45e7c2cdb1d7686e08e8d15bfa1638ba8dddc0023e998721ffc37e36
+rc=0
+
+$ /tmp/tmp.2q5c6Xmo0l/ledger --journal $FRESH_SETTLEMENT_EVIDENCE/reserve-before-write/honest/journal prefund pf-1 requester 100 3045022073a7d8114e8c767eb28b0b2f500c843f6938a982170e393384a259cd0d7c3e2b0221008427bc8bd9984dcb075af97bfea1316bdab91a10e883ad62806be319ad3be584
+prefunded pf-1 requester 100
+rc=0
+
+$ $CARRIER_TREE/target/release/aienet0-run bundle --keys $FIXTURES/keys --out $FRESH_SETTLEMENT_EVIDENCE/reserve-before-write/honest/out/job.an0b
+BUNDLE 00af0089c68367ada1f289b3bdd9477bca3cfdadbbbe8bfa8e2eeb6832d5cacf $FRESH_SETTLEMENT_EVIDENCE/reserve-before-write/honest/out/job.an0b
+rc=0
+
+# reservation intent JOB 00af0089c68367ada1f289b3bdd9477bca3cfdadbbbe8bfa8e2eeb6832d5cacf JOURNAL $FRESH_SETTLEMENT_EVIDENCE/reserve-before-write/honest/journal; reconcile this native job if the adapter is interrupted
+$ /tmp/tmp.2q5c6Xmo0l/ledger --journal $FRESH_SETTLEMENT_EVIDENCE/reserve-before-write/honest/journal reserve 00af0089c68367ada1f289b3bdd9477bca3cfdadbbbe8bfa8e2eeb6832d5cacf requester provider verifier 40 bbb8fea2d385c682ac6cb7d3996351855000be729efa8b2dd1230a7bf9ea2e40 3045022100f1a58c97428ccd3f1f47f3ff157548cd7c28697e79380056df0dbf30782d01fc02204173d5da06724a5efdbf97077b7045c48d1fe8e854fb0bd220a2a7e6edccd3f6
+rc=3
+
+# RESULT FAIL honest: reserve rc=3
+RESULT FAIL honest: reserve rc=3
+RECOVERY no-reservation JOB 00af0089c68367ada1f289b3bdd9477bca3cfdadbbbe8bfa8e2eeb6832d5cacf JOURNAL $FRESH_SETTLEMENT_EVIDENCE/reserve-before-write/honest/journal
+
+
+ARTIFACT reserve-lost-response/adapter.out SHA256 c13fb6775926fe6103f25bfc07f016aed5d1030367334429bd73dc63d4ed1a12
+# HOST_TESTED honest, 2026-10-28T12:16:52Z
+# ledger /tmp/tmp.2q5c6Xmo0l/ledger sha256 308f4e1a567f77834ca577601b6947fcd46fb0b0b2242c4630231f6bb90d7b42; run $CARRIER_TREE/target/release/aienet0-run sha256 9982c6cc8987ab68222c93794e08cd9c38bed1fbab19d105f1b047433412474c
+# OpenSSL 3.0.13 30 Jan 2024 (Library: OpenSSL 3.0.13 30 Jan 2024); test oracle only, no production key or independent-operator qualification
+$ $CARRIER_TREE/target/release/aienet0-run keys --keys $FIXTURES/keys
+coordinator.ed25519 85a5bb61058e42e8c6e83e4cc1c2238e1a75a1747e1fbd7452637dd5d3153ea5
+submitter.p256 03b2374b6b8edd9e96845c91ebf5f4c5c22da04d96113f443ac0c28ffc854e19db
+verifier.p256 03ccdafeea45e7c2cdb1d7686e08e8d15bfa1638ba8dddc0023e998721ffc37e36
+rc=0
+
+$ /tmp/tmp.2q5c6Xmo0l/ledger --journal $FRESH_SETTLEMENT_EVIDENCE/reserve-lost-response/honest/journal prefund pf-1 requester 100 3045022100de5c32d68f3a53eded0b3385f090301cf5bb9aff2624c53e1883e5469a754f1d02201ccba1f6277089a22cf33ddf55e42edb1539edca02e9595df9bf5258575f68c1
+prefunded pf-1 requester 100
+rc=0
+
+$ $CARRIER_TREE/target/release/aienet0-run bundle --keys $FIXTURES/keys --out $FRESH_SETTLEMENT_EVIDENCE/reserve-lost-response/honest/out/job.an0b
+BUNDLE 52be2db96356ea66051d75692610c9861cc44fa9ffc87601db7900951abc50a8 $FRESH_SETTLEMENT_EVIDENCE/reserve-lost-response/honest/out/job.an0b
+rc=0
+
+# reservation intent JOB 52be2db96356ea66051d75692610c9861cc44fa9ffc87601db7900951abc50a8 JOURNAL $FRESH_SETTLEMENT_EVIDENCE/reserve-lost-response/honest/journal; reconcile this native job if the adapter is interrupted
+$ /tmp/tmp.2q5c6Xmo0l/ledger --journal $FRESH_SETTLEMENT_EVIDENCE/reserve-lost-response/honest/journal reserve 52be2db96356ea66051d75692610c9861cc44fa9ffc87601db7900951abc50a8 requester provider verifier 40 bbb8fea2d385c682ac6cb7d3996351855000be729efa8b2dd1230a7bf9ea2e40 3045022052ab4058acb98bd11a6ca6ab3ee48e6d0fb3f6053121c86bdd5343d225c97e28022100a1e36c181c48136ddfdf19b3c0bc5f7091995d2435067e9af33f4c38f8b9ab52
+reserved 52be2db96356ea66051d75692610c9861cc44fa9ffc87601db7900951abc50a8 requester provider verifier 40
+rc=3
+
+# RESULT FAIL honest: reserve rc=3
+RESULT FAIL honest: reserve rc=3
+RECOVERY closed JOB 52be2db96356ea66051d75692610c9861cc44fa9ffc87601db7900951abc50a8 phase refunded JOURNAL $FRESH_SETTLEMENT_EVIDENCE/reserve-lost-response/honest/journal
+
+
+ARTIFACT settle-before-write/adapter.out SHA256 1b604c3a2c216e95018848cbec699b32eadf6208bbd6388d2f4b2db3238a1a04
+# HOST_TESTED honest, 2026-10-28T12:16:53Z
+# ledger /tmp/tmp.2q5c6Xmo0l/ledger sha256 308f4e1a567f77834ca577601b6947fcd46fb0b0b2242c4630231f6bb90d7b42; run $CARRIER_TREE/target/release/aienet0-run sha256 9982c6cc8987ab68222c93794e08cd9c38bed1fbab19d105f1b047433412474c
+# OpenSSL 3.0.13 30 Jan 2024 (Library: OpenSSL 3.0.13 30 Jan 2024); test oracle only, no production key or independent-operator qualification
+$ $CARRIER_TREE/target/release/aienet0-run keys --keys $FIXTURES/keys
+coordinator.ed25519 85a5bb61058e42e8c6e83e4cc1c2238e1a75a1747e1fbd7452637dd5d3153ea5
+submitter.p256 03b2374b6b8edd9e96845c91ebf5f4c5c22da04d96113f443ac0c28ffc854e19db
+verifier.p256 03ccdafeea45e7c2cdb1d7686e08e8d15bfa1638ba8dddc0023e998721ffc37e36
+rc=0
+
+$ /tmp/tmp.2q5c6Xmo0l/ledger --journal $FRESH_SETTLEMENT_EVIDENCE/settle-before-write/honest/journal prefund pf-1 requester 100 3046022100c63eb18112de3f52826ec743b11a750049ac0ba5802867982a15e1523354788d022100f8b3bc361ef4997d88298ec1d6281863c1f21195b4364b652d75644a727518f7
+prefunded pf-1 requester 100
+rc=0
+
+$ $CARRIER_TREE/target/release/aienet0-run bundle --keys $FIXTURES/keys --out $FRESH_SETTLEMENT_EVIDENCE/settle-before-write/honest/out/job.an0b
+BUNDLE ec1585fd435196edc2c29fc8967ec2636e9ba4c9191fee2278338fd568010b0a $FRESH_SETTLEMENT_EVIDENCE/settle-before-write/honest/out/job.an0b
+rc=0
+
+# reservation intent JOB ec1585fd435196edc2c29fc8967ec2636e9ba4c9191fee2278338fd568010b0a JOURNAL $FRESH_SETTLEMENT_EVIDENCE/settle-before-write/honest/journal; reconcile this native job if the adapter is interrupted
+$ /tmp/tmp.2q5c6Xmo0l/ledger --journal $FRESH_SETTLEMENT_EVIDENCE/settle-before-write/honest/journal reserve ec1585fd435196edc2c29fc8967ec2636e9ba4c9191fee2278338fd568010b0a requester provider verifier 40 bbb8fea2d385c682ac6cb7d3996351855000be729efa8b2dd1230a7bf9ea2e40 304502203fd7090b112f829072b5e23150d041dec235dd6cd58d17575804298a45a7d4d70221009e78f8c2693bd5e2d1fe80eaa549fd5de442af4c49f2d45913f9cc672a1dd07b
+reserved ec1585fd435196edc2c29fc8967ec2636e9ba4c9191fee2278338fd568010b0a requester provider verifier 40
+rc=0
+
+# serve: $CARRIER_TREE/target/release/aienet0-serve  --connect 127.0.0.1:39364 --keys $FIXTURES/wkeys --pins $FIXTURES/wpins --state $FRESH_SETTLEMENT_EVIDENCE/settle-before-write/worker-state --connect-timeout 60
+$ $CARRIER_TREE/target/release/aienet0-run run --resend $FRESH_SETTLEMENT_EVIDENCE/settle-before-write/honest/out/job.an0b --listen 127.0.0.1:39364 --keys $FIXTURES/keys --pins $FIXTURES/pins --out $FRESH_SETTLEMENT_EVIDENCE/settle-before-write/honest/out --recompute $FIXTURES/recompute64 --recompute-sha256 d2cd7382e0dc64e49498ae3b1ceffc73f1ddcbd3ddcf93e6d607498ccd58ea12 --accept-timeout 90
+aienet0-run: dag_id=ec1585fd435196edc2c29fc8967ec2636e9ba4c9191fee2278338fd568010b0a payload=0100400040004000000000a1e70001 bundle=$FRESH_SETTLEMENT_EVIDENCE/settle-before-write/honest/out/ec1585fd435196edc2c29fc8967ec2636e9ba4c9191fee2278338fd568010b0a.an0b coordinator=85a5bb61058e42e8c6e83e4cc1c2238e1a75a1747e1fbd7452637dd5d3153ea5
+aienet0-run: connection from 127.0.0.1:47588
+aienet0-run: receipt sha256=3384419243afde506c1adbc6b010715c385fb9f407e0889980db42e4debbca64
+aienet0-run: executor output=b3be3072c0deeb5b85a224f0266b2aebbe93b147d657174ce57dfceb2df0c730 omega recompute=b3be3072c0deeb5b85a224f0266b2aebbe93b147d657174ce57dfceb2df0c730
+VERIFIED ec1585fd435196edc2c29fc8967ec2636e9ba4c9191fee2278338fd568010b0a 3384419243afde506c1adbc6b010715c385fb9f407e0889980db42e4debbca64 $FRESH_SETTLEMENT_EVIDENCE/settle-before-write/honest/out/ec1585fd435196edc2c29fc8967ec2636e9ba4c9191fee2278338fd568010b0a.mjr1
+rc=0
+
+# serve rc=0 stdout: RECEIPT ec1585fd435196edc2c29fc8967ec2636e9ba4c9191fee2278338fd568010b0a 3384419243afde506c1adbc6b010715c385fb9f407e0889980db42e4debbca64 output=b3be3072c0deeb5b85a224f0266b2aebbe93b147d657174ce57dfceb2df0c730 executor=037724a5ac3d6c32ffe9bb283ac2cf39eda35d81f92adc3c5524413d1b36c471ca time_ms=1
+# serve stderr: aienet0-serve: session up, coordinator 85a5bb61058e42e8c6e83e4cc1c2238e1a75a1747e1fbd7452637dd5d3153ea5 aienet0-serve: executing dag_id=ec1585fd435196edc2c29fc8967ec2636e9ba4c9191fee2278338fd568010b0a matmul_u32 m=64 k=64 n=64 seed=2716270593 
+$ $CARRIER_TREE/target/release/aienet0-run check --bundle $FRESH_SETTLEMENT_EVIDENCE/settle-before-write/honest/out/ec1585fd435196edc2c29fc8967ec2636e9ba4c9191fee2278338fd568010b0a.an0b --mjr1 $FRESH_SETTLEMENT_EVIDENCE/settle-before-write/honest/out/ec1585fd435196edc2c29fc8967ec2636e9ba4c9191fee2278338fd568010b0a.mjr1 --mjv $FRESH_SETTLEMENT_EVIDENCE/settle-before-write/honest/out/ec1585fd435196edc2c29fc8967ec2636e9ba4c9191fee2278338fd568010b0a.mjv --keys $FIXTURES/keys --pins $FIXTURES/pins
+CHECKED ec1585fd435196edc2c29fc8967ec2636e9ba4c9191fee2278338fd568010b0a 3384419243afde506c1adbc6b010715c385fb9f407e0889980db42e4debbca64
+rc=0
+
+# decision: independently rechecked artifacts ec1585fd435196edc2c29fc8967ec2636e9ba4c9191fee2278338fd568010b0a -> signed settle
+$ /tmp/tmp.2q5c6Xmo0l/ledger --journal $FRESH_SETTLEMENT_EVIDENCE/settle-before-write/honest/journal settle ec1585fd435196edc2c29fc8967ec2636e9ba4c9191fee2278338fd568010b0a 3384419243afde506c1adbc6b010715c385fb9f407e0889980db42e4debbca64 27 3 10 84f9978450baf3e775486c5ed07f3a61d630773216f0f1f0bdec653690340907 e6728bb01ad9752f44d3fed0783fd68ffa7211ff179e972498302c8a0ab4ba94 3045022100e7cd883d38fad2dbd95ada80208eb24258c6512d7a686d61886e2868eb47458f022033b37e094e6fe9adff2be71552471840f4143944db1a40d712b49b7152bfde11 3044022027dc97dede098ef28cb18b9a143cd54ad601153eff3fdfeecf10583ed5c86eeb0220695f4f2337f3f0c70f312cda570b2236490668fe59c1713c56eb57ad1d38d63f
+rc=3
+
+# RESULT FAIL honest: settle rc=3
+RESULT FAIL honest: settle rc=3
+RECOVERY closed JOB ec1585fd435196edc2c29fc8967ec2636e9ba4c9191fee2278338fd568010b0a phase refunded JOURNAL $FRESH_SETTLEMENT_EVIDENCE/settle-before-write/honest/journal
+
+
+ARTIFACT settle-lost-response/adapter.out SHA256 e3e12f7286d12e7c452f6f5d9cf2d30665a46d081a37c787bc90393daf05603e
+# HOST_TESTED honest, 2026-10-28T12:16:53Z
+# ledger /tmp/tmp.2q5c6Xmo0l/ledger sha256 308f4e1a567f77834ca577601b6947fcd46fb0b0b2242c4630231f6bb90d7b42; run $CARRIER_TREE/target/release/aienet0-run sha256 9982c6cc8987ab68222c93794e08cd9c38bed1fbab19d105f1b047433412474c
+# OpenSSL 3.0.13 30 Jan 2024 (Library: OpenSSL 3.0.13 30 Jan 2024); test oracle only, no production key or independent-operator qualification
+$ $CARRIER_TREE/target/release/aienet0-run keys --keys $FIXTURES/keys
+coordinator.ed25519 85a5bb61058e42e8c6e83e4cc1c2238e1a75a1747e1fbd7452637dd5d3153ea5
+submitter.p256 03b2374b6b8edd9e96845c91ebf5f4c5c22da04d96113f443ac0c28ffc854e19db
+verifier.p256 03ccdafeea45e7c2cdb1d7686e08e8d15bfa1638ba8dddc0023e998721ffc37e36
+rc=0
+
+$ /tmp/tmp.2q5c6Xmo0l/ledger --journal $FRESH_SETTLEMENT_EVIDENCE/settle-lost-response/honest/journal prefund pf-1 requester 100 30450221009ab4e2a632a1964218e74b09e0c271d033621cd0c277ce49d68a2086e44b3aea02204c0ba6c7c09756cd70d39340beb6f3c44d62613547ef74cfbb44f61c797dcd5c
+prefunded pf-1 requester 100
+rc=0
+
+$ $CARRIER_TREE/target/release/aienet0-run bundle --keys $FIXTURES/keys --out $FRESH_SETTLEMENT_EVIDENCE/settle-lost-response/honest/out/job.an0b
+BUNDLE c58d47353eb7bdb30ee2c7bf4670d84e1cafa91235d786df617b4d2edebb8c9a $FRESH_SETTLEMENT_EVIDENCE/settle-lost-response/honest/out/job.an0b
+rc=0
+
+# reservation intent JOB c58d47353eb7bdb30ee2c7bf4670d84e1cafa91235d786df617b4d2edebb8c9a JOURNAL $FRESH_SETTLEMENT_EVIDENCE/settle-lost-response/honest/journal; reconcile this native job if the adapter is interrupted
+$ /tmp/tmp.2q5c6Xmo0l/ledger --journal $FRESH_SETTLEMENT_EVIDENCE/settle-lost-response/honest/journal reserve c58d47353eb7bdb30ee2c7bf4670d84e1cafa91235d786df617b4d2edebb8c9a requester provider verifier 40 bbb8fea2d385c682ac6cb7d3996351855000be729efa8b2dd1230a7bf9ea2e40 30440220245feab06a358f952305f486c24736f3f6f9247a2e91e349641bb94574fe5984022039dafe0e0b5953610ec45af0dbe9cf899ab567b81ad9d4649c898645a3fa7da4
+reserved c58d47353eb7bdb30ee2c7bf4670d84e1cafa91235d786df617b4d2edebb8c9a requester provider verifier 40
+rc=0
+
+# serve: $CARRIER_TREE/target/release/aienet0-serve  --connect 127.0.0.1:39364 --keys $FIXTURES/wkeys --pins $FIXTURES/wpins --state $FRESH_SETTLEMENT_EVIDENCE/settle-lost-response/worker-state --connect-timeout 60
+$ $CARRIER_TREE/target/release/aienet0-run run --resend $FRESH_SETTLEMENT_EVIDENCE/settle-lost-response/honest/out/job.an0b --listen 127.0.0.1:39364 --keys $FIXTURES/keys --pins $FIXTURES/pins --out $FRESH_SETTLEMENT_EVIDENCE/settle-lost-response/honest/out --recompute $FIXTURES/recompute64 --recompute-sha256 d2cd7382e0dc64e49498ae3b1ceffc73f1ddcbd3ddcf93e6d607498ccd58ea12 --accept-timeout 90
+aienet0-run: dag_id=c58d47353eb7bdb30ee2c7bf4670d84e1cafa91235d786df617b4d2edebb8c9a payload=0100400040004000000000a1e70001 bundle=$FRESH_SETTLEMENT_EVIDENCE/settle-lost-response/honest/out/c58d47353eb7bdb30ee2c7bf4670d84e1cafa91235d786df617b4d2edebb8c9a.an0b coordinator=85a5bb61058e42e8c6e83e4cc1c2238e1a75a1747e1fbd7452637dd5d3153ea5
+aienet0-run: connection from 127.0.0.1:47604
+aienet0-run: receipt sha256=fcf62cb04405579d995bd39e846c3d72c612d34b7c3ef3ab6ddcd11ac25c10a9
+aienet0-run: executor output=b3be3072c0deeb5b85a224f0266b2aebbe93b147d657174ce57dfceb2df0c730 omega recompute=b3be3072c0deeb5b85a224f0266b2aebbe93b147d657174ce57dfceb2df0c730
+VERIFIED c58d47353eb7bdb30ee2c7bf4670d84e1cafa91235d786df617b4d2edebb8c9a fcf62cb04405579d995bd39e846c3d72c612d34b7c3ef3ab6ddcd11ac25c10a9 $FRESH_SETTLEMENT_EVIDENCE/settle-lost-response/honest/out/c58d47353eb7bdb30ee2c7bf4670d84e1cafa91235d786df617b4d2edebb8c9a.mjr1
+rc=0
+
+# serve rc=0 stdout: RECEIPT c58d47353eb7bdb30ee2c7bf4670d84e1cafa91235d786df617b4d2edebb8c9a fcf62cb04405579d995bd39e846c3d72c612d34b7c3ef3ab6ddcd11ac25c10a9 output=b3be3072c0deeb5b85a224f0266b2aebbe93b147d657174ce57dfceb2df0c730 executor=037724a5ac3d6c32ffe9bb283ac2cf39eda35d81f92adc3c5524413d1b36c471ca time_ms=1
+# serve stderr: aienet0-serve: session up, coordinator 85a5bb61058e42e8c6e83e4cc1c2238e1a75a1747e1fbd7452637dd5d3153ea5 aienet0-serve: executing dag_id=c58d47353eb7bdb30ee2c7bf4670d84e1cafa91235d786df617b4d2edebb8c9a matmul_u32 m=64 k=64 n=64 seed=2716270593 
+$ $CARRIER_TREE/target/release/aienet0-run check --bundle $FRESH_SETTLEMENT_EVIDENCE/settle-lost-response/honest/out/c58d47353eb7bdb30ee2c7bf4670d84e1cafa91235d786df617b4d2edebb8c9a.an0b --mjr1 $FRESH_SETTLEMENT_EVIDENCE/settle-lost-response/honest/out/c58d47353eb7bdb30ee2c7bf4670d84e1cafa91235d786df617b4d2edebb8c9a.mjr1 --mjv $FRESH_SETTLEMENT_EVIDENCE/settle-lost-response/honest/out/c58d47353eb7bdb30ee2c7bf4670d84e1cafa91235d786df617b4d2edebb8c9a.mjv --keys $FIXTURES/keys --pins $FIXTURES/pins
+CHECKED c58d47353eb7bdb30ee2c7bf4670d84e1cafa91235d786df617b4d2edebb8c9a fcf62cb04405579d995bd39e846c3d72c612d34b7c3ef3ab6ddcd11ac25c10a9
+rc=0
+
+# decision: independently rechecked artifacts c58d47353eb7bdb30ee2c7bf4670d84e1cafa91235d786df617b4d2edebb8c9a -> signed settle
+$ /tmp/tmp.2q5c6Xmo0l/ledger --journal $FRESH_SETTLEMENT_EVIDENCE/settle-lost-response/honest/journal settle c58d47353eb7bdb30ee2c7bf4670d84e1cafa91235d786df617b4d2edebb8c9a fcf62cb04405579d995bd39e846c3d72c612d34b7c3ef3ab6ddcd11ac25c10a9 27 3 10 46df05ffcc4043ac86ef5529ea013903c145f3383d24b28a6c56a668c8ec089f 06a0c5b919b452b241c7a7a22fa4006fa0de8f1cd3bb4ecbe602d717e16aa6a5 3045022100999202cbea9f4d64aff61234759d166d7abd8136d472ca5dba47d71b4c7c071d0220531bac3d8f08898f86066e9c658547c0b1ea0f677a44d7d53ee360715c506a52 304402206246478506e1abedb6785d8b25a148daf543dfff065713c85caae22c57fc539302205848229aba8474aa2a2b83693b8a84d313c664580c9a75640141f13ca7ac28e8
+settled c58d47353eb7bdb30ee2c7bf4670d84e1cafa91235d786df617b4d2edebb8c9a fcf62cb04405579d995bd39e846c3d72c612d34b7c3ef3ab6ddcd11ac25c10a9 27 3 10
+rc=3
+
+# RESULT FAIL honest: settle rc=3
+RESULT FAIL honest: settle rc=3
+RECOVERY closed JOB c58d47353eb7bdb30ee2c7bf4670d84e1cafa91235d786df617b4d2edebb8c9a phase settled JOURNAL $FRESH_SETTLEMENT_EVIDENCE/settle-lost-response/honest/journal
+
+
+ARTIFACT persistent-write-failure/adapter.out SHA256 774bfb26df86dbf454e7d59868d6ba2ade803eb4584ce67673df8019c91bcb1e
+# HOST_TESTED honest, 2026-10-28T12:16:54Z
+# ledger /tmp/tmp.2q5c6Xmo0l/ledger sha256 308f4e1a567f77834ca577601b6947fcd46fb0b0b2242c4630231f6bb90d7b42; run $CARRIER_TREE/target/release/aienet0-run sha256 9982c6cc8987ab68222c93794e08cd9c38bed1fbab19d105f1b047433412474c
+# OpenSSL 3.0.13 30 Jan 2024 (Library: OpenSSL 3.0.13 30 Jan 2024); test oracle only, no production key or independent-operator qualification
+$ $CARRIER_TREE/target/release/aienet0-run keys --keys $FIXTURES/keys
+coordinator.ed25519 85a5bb61058e42e8c6e83e4cc1c2238e1a75a1747e1fbd7452637dd5d3153ea5
+submitter.p256 03b2374b6b8edd9e96845c91ebf5f4c5c22da04d96113f443ac0c28ffc854e19db
+verifier.p256 03ccdafeea45e7c2cdb1d7686e08e8d15bfa1638ba8dddc0023e998721ffc37e36
+rc=0
+
+$ /tmp/tmp.2q5c6Xmo0l/ledger --journal $FRESH_SETTLEMENT_EVIDENCE/persistent-write-failure/honest/journal prefund pf-1 requester 100 304402204544a46ebdf341848dc9c18f2d70e716ca0f7442a2a69e19edbb4be2c75f5bcb02204cd93725d3f189ea7dddc61aafd4f2c8f1d84899c70502610fd21b0ab020e299
+prefunded pf-1 requester 100
+rc=0
+
+$ $CARRIER_TREE/target/release/aienet0-run bundle --keys $FIXTURES/keys --out $FRESH_SETTLEMENT_EVIDENCE/persistent-write-failure/honest/out/job.an0b
+BUNDLE 66d8f80ebf0e36d2327182f863fdccc955135294e3e6fc2e41a6bcdcdae143a0 $FRESH_SETTLEMENT_EVIDENCE/persistent-write-failure/honest/out/job.an0b
+rc=0
+
+# reservation intent JOB 66d8f80ebf0e36d2327182f863fdccc955135294e3e6fc2e41a6bcdcdae143a0 JOURNAL $FRESH_SETTLEMENT_EVIDENCE/persistent-write-failure/honest/journal; reconcile this native job if the adapter is interrupted
+$ /tmp/tmp.2q5c6Xmo0l/ledger --journal $FRESH_SETTLEMENT_EVIDENCE/persistent-write-failure/honest/journal reserve 66d8f80ebf0e36d2327182f863fdccc955135294e3e6fc2e41a6bcdcdae143a0 requester provider verifier 40 bbb8fea2d385c682ac6cb7d3996351855000be729efa8b2dd1230a7bf9ea2e40 3045022100e2d8f2536c2ab763f8afacc6b8af81450df14ae03e46b646291bac4a7d641e90022019d4747a544fd56109640c55a6b6f12d2584632878a6d63d9c3eaca7962f700a
+reserved 66d8f80ebf0e36d2327182f863fdccc955135294e3e6fc2e41a6bcdcdae143a0 requester provider verifier 40
+rc=0
+
+# serve: $CARRIER_TREE/target/release/aienet0-serve  --connect 127.0.0.1:39364 --keys $FIXTURES/wkeys --pins $FIXTURES/wpins --state $FRESH_SETTLEMENT_EVIDENCE/persistent-write-failure/worker-state --connect-timeout 60
+$ $CARRIER_TREE/target/release/aienet0-run run --resend $FRESH_SETTLEMENT_EVIDENCE/persistent-write-failure/honest/out/job.an0b --listen 127.0.0.1:39364 --keys $FIXTURES/keys --pins $FIXTURES/pins --out $FRESH_SETTLEMENT_EVIDENCE/persistent-write-failure/honest/out --recompute $FIXTURES/recompute64 --recompute-sha256 d2cd7382e0dc64e49498ae3b1ceffc73f1ddcbd3ddcf93e6d607498ccd58ea12 --accept-timeout 90
+aienet0-run: dag_id=66d8f80ebf0e36d2327182f863fdccc955135294e3e6fc2e41a6bcdcdae143a0 payload=0100400040004000000000a1e70001 bundle=$FRESH_SETTLEMENT_EVIDENCE/persistent-write-failure/honest/out/66d8f80ebf0e36d2327182f863fdccc955135294e3e6fc2e41a6bcdcdae143a0.an0b coordinator=85a5bb61058e42e8c6e83e4cc1c2238e1a75a1747e1fbd7452637dd5d3153ea5
+aienet0-run: connection from 127.0.0.1:47610
+aienet0-run: receipt sha256=4011856d6bbf76bd7b4aa5021701a081029cb3204ea62127fa8bcbbcb001cfd8
+aienet0-run: executor output=b3be3072c0deeb5b85a224f0266b2aebbe93b147d657174ce57dfceb2df0c730 omega recompute=b3be3072c0deeb5b85a224f0266b2aebbe93b147d657174ce57dfceb2df0c730
+VERIFIED 66d8f80ebf0e36d2327182f863fdccc955135294e3e6fc2e41a6bcdcdae143a0 4011856d6bbf76bd7b4aa5021701a081029cb3204ea62127fa8bcbbcb001cfd8 $FRESH_SETTLEMENT_EVIDENCE/persistent-write-failure/honest/out/66d8f80ebf0e36d2327182f863fdccc955135294e3e6fc2e41a6bcdcdae143a0.mjr1
+rc=0
+
+# serve rc=0 stdout: RECEIPT 66d8f80ebf0e36d2327182f863fdccc955135294e3e6fc2e41a6bcdcdae143a0 4011856d6bbf76bd7b4aa5021701a081029cb3204ea62127fa8bcbbcb001cfd8 output=b3be3072c0deeb5b85a224f0266b2aebbe93b147d657174ce57dfceb2df0c730 executor=037724a5ac3d6c32ffe9bb283ac2cf39eda35d81f92adc3c5524413d1b36c471ca time_ms=1
+# serve stderr: aienet0-serve: session up, coordinator 85a5bb61058e42e8c6e83e4cc1c2238e1a75a1747e1fbd7452637dd5d3153ea5 aienet0-serve: executing dag_id=66d8f80ebf0e36d2327182f863fdccc955135294e3e6fc2e41a6bcdcdae143a0 matmul_u32 m=64 k=64 n=64 seed=2716270593 
+$ $CARRIER_TREE/target/release/aienet0-run check --bundle $FRESH_SETTLEMENT_EVIDENCE/persistent-write-failure/honest/out/66d8f80ebf0e36d2327182f863fdccc955135294e3e6fc2e41a6bcdcdae143a0.an0b --mjr1 $FRESH_SETTLEMENT_EVIDENCE/persistent-write-failure/honest/out/66d8f80ebf0e36d2327182f863fdccc955135294e3e6fc2e41a6bcdcdae143a0.mjr1 --mjv $FRESH_SETTLEMENT_EVIDENCE/persistent-write-failure/honest/out/66d8f80ebf0e36d2327182f863fdccc955135294e3e6fc2e41a6bcdcdae143a0.mjv --keys $FIXTURES/keys --pins $FIXTURES/pins
+CHECKED 66d8f80ebf0e36d2327182f863fdccc955135294e3e6fc2e41a6bcdcdae143a0 4011856d6bbf76bd7b4aa5021701a081029cb3204ea62127fa8bcbbcb001cfd8
+rc=0
+
+# decision: independently rechecked artifacts 66d8f80ebf0e36d2327182f863fdccc955135294e3e6fc2e41a6bcdcdae143a0 -> signed settle
+$ /tmp/tmp.2q5c6Xmo0l/ledger --journal $FRESH_SETTLEMENT_EVIDENCE/persistent-write-failure/honest/journal settle 66d8f80ebf0e36d2327182f863fdccc955135294e3e6fc2e41a6bcdcdae143a0 4011856d6bbf76bd7b4aa5021701a081029cb3204ea62127fa8bcbbcb001cfd8 27 3 10 20317c0e00b2fb7845166b1e1cbe855375a1ea7a4989b81388cbdda3b746b40a e4afa7a711b0a928f3a739e5499febe71e173590011310ce06fee7872fd16efc 3046022100fde852405dd8133e1c41648e3766acd4a306e2af7e4575742166b861cc000469022100d769a2bc4e086754e44e77e370f778c994d66ad3bbc0f2538b240f64b9326b84 304502207324c0a43a2f3b482403aedae81c45a25b0e2f8062bf6d196edd47d2ca8e8755022100e7d88c6f32f64c1d86e57c93a4363442602fde5afd259b946742afe95af107f3
+rc=3
+
+# RESULT FAIL honest: settle rc=3
+RESULT FAIL honest: settle rc=3
+RECOVERY REQUIRED JOB 66d8f80ebf0e36d2327182f863fdccc955135294e3e6fc2e41a6bcdcdae143a0 JOURNAL $FRESH_SETTLEMENT_EVIDENCE/persistent-write-failure/honest/journal; native state/refund unavailable, operator reconciliation required
+
+
+ARTIFACT mutants/no-reconciliation.out SHA256 2fc40939b6c21314fa7e841b2ae0eea33b536c641cfc383a20cedcae2fe85bb2
+PASS honest (driver 0, settled, native audit 0)
+PASS forged-receipt (driver 0, refunded, native audit 0)
+PASS forged-attestation (driver 0, refunded, native audit 0)
+PASS false-verified-stdout (driver 1, refunded, native audit 0)
+FAIL reserve-before-write: driver 1 wanted 1; audit 0 'audit ok records 2 head 001453347eb82101263336af0b0d20a616da0e93ff9bb6a9548920ec8064601c accounts 1 jobs 0 open 0 settled 0 refunded 0 prefunded 100 balances 100 escrow 0'; marker 'RECOVERY no-reservation JOB'
+FAIL reserve-lost-response: driver 1 wanted 1; audit 0 'audit ok records 3 head d3f913e07a9dbf62bce5ef4fb3e2f10254385538cedc27d095d4f76876507acc accounts 3 jobs 1 open 1 settled 0 refunded 0 prefunded 100 balances 60 escrow 40'; marker 'RECOVERY closed JOB'
+PASS reserve-lost-response.operator-refund-after-fault-cleared
+FAIL settle-before-write: driver 1 wanted 1; audit 0 'audit ok records 3 head c7df4af82b4f199df0eb729d93d4d94a6690c5dd726a5d0ae1a976a90a9bdfcf accounts 3 jobs 1 open 1 settled 0 refunded 0 prefunded 100 balances 60 escrow 40'; marker 'RECOVERY closed JOB'
+PASS settle-before-write.operator-refund-after-fault-cleared
+FAIL settle-lost-response: driver 1 wanted 1; audit 0 'audit ok records 4 head b0a3dafd6de75946313ea84b9a4917a0a95a4e1d8e0b793661eb0be765b7a3f0 accounts 3 jobs 1 open 0 settled 1 refunded 0 prefunded 100 balances 100 escrow 0'; marker 'RECOVERY closed JOB'
+FAIL persistent-write-failure: driver 1 wanted 1; audit 0 'audit ok records 3 head 5c78b5b4c468f40bc3c684e5b8af52a4e0bd39a52edafa19492b7526211064fd accounts 3 jobs 1 open 1 settled 0 refunded 0 prefunded 100 balances 60 escrow 40'; marker 'RECOVERY REQUIRED JOB'
+PASS persistent-write-failure.operator-refund-after-fault-cleared
+ADAPTER controls failures=5
+
+
+ARTIFACT mutants/no-artifact-admission.out SHA256 c6fd03f9a489e5a8d0ffe95296a8ac01db97b1168e43463f5e9823f6c9379d4d
+PASS honest (driver 0, settled, native audit 0)
+PASS forged-receipt (driver 0, refunded, native audit 0)
+FAIL forged-attestation: driver 1 wanted 0; audit 0 'audit ok records 4 head 98470cab1ca7030dcc0b28c48efcecc8255b4da19f27d81b465f6408d3e2be77 accounts 3 jobs 1 open 0 settled 1 refunded 0 prefunded 100 balances 100 escrow 0'; marker ''
+FAIL false-verified-stdout: driver 0 wanted 1; audit 0 'audit ok records 4 head c15e650c094197b21431e04ebfc3f6d6d4fd1f513a76f47aca6e348bf4fb9d37 accounts 3 jobs 1 open 0 settled 1 refunded 0 prefunded 100 balances 100 escrow 0'; marker ''
+PASS reserve-before-write (driver 1, none, native audit 0)
+PASS reserve-lost-response (driver 1, refunded, native audit 0)
+PASS settle-before-write (driver 1, refunded, native audit 0)
+PASS settle-lost-response (driver 1, settled, native audit 0)
+PASS persistent-write-failure (driver 1, reserved, native audit 0)
+PASS persistent-write-failure.operator-refund-after-fault-cleared
+ADAPTER controls failures=2
+
