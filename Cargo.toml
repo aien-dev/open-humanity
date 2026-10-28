@@ -19,6 +19,6 @@ repository = "https://github.com/aien-dev/open-humanity"
 # Aienet-0 P0 job path (aienet0-run, aienet0-serve): the MJB1/MJR1 reader,
 # writer and validator, reused from aien-protocols-mv, pinned to one commit.
 [workspace.dependencies]
-aien-microjob = { git = "https://github.com/aien-dev/aien-protocols-mv", rev = "a82a8f8b8d2f1edab8ada5d995ae96449fa7302e" }
+aien-microjob = { git = "https://github.com/aien-dev/aien-protocols-mv", rev = "7bfb4ee2fda4fee023a8f9b62639efedc1206391" }
 p256 = { version = "0.14.0", default-features = false, features = ["ecdsa"] }
 sha2 = "0.10"

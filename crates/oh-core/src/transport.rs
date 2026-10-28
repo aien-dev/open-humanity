@@ -662,6 +662,7 @@ mod tests {
     fn test_wrong_pinned_key_is_refused() {
         let other = Keypair::generate().pubkey_bytes();
         let (v, _c) = session(|_| CoordinatorPin::Key(other));
+        assert!(v.is_err(), "AN0_SEMANTIC coordinator-pin");
         assert!(matches!(v, Err(TransportError::WrongCoordinator { .. })));
     }
 
@@ -707,6 +708,7 @@ mod tests {
     fn test_unpinned_volunteer_is_refused_before_the_coordinator_speaks() {
         let other = Keypair::generate().pubkey_bytes();
         let (v, c, _) = pinned_volunteer_session(|_| other);
+        assert!(c.is_err(), "AN0_SEMANTIC volunteer-pin");
         assert!(matches!(c, Err(TransportError::WrongVolunteer { .. })));
         // The coordinator sent no hello: the volunteer sees the stream end.
         assert!(matches!(v, Err(TransportError::Io(_))));

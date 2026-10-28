@@ -133,7 +133,7 @@ mod tests {
         let mut huge = vec![tag::BUNDLE];
         huge.extend_from_slice(&((MAX_BUNDLE + 1) as u32).to_be_bytes());
         let e = recv_frame(&mut huge.as_slice()).unwrap_err();
-        assert_eq!(e.kind(), io::ErrorKind::InvalidData);
+        assert_eq!(e.kind(), io::ErrorKind::InvalidData, "AN0_SEMANTIC carrier-bound");
         let mut short = vec![tag::RECEIPT];
         short.extend_from_slice(&403u32.to_be_bytes());
         assert!(recv_frame(&mut short.as_slice()).is_err());

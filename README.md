@@ -102,6 +102,20 @@ Requester artifacts are published from unique synchronized temporary files
 with a no-replace hard link, including when a destination is a dangling
 symlink; concurrent writers cannot overwrite an existing artifact.
 
+The requester gives the pinned recompute child one 30-second deadline
+covering stdin delivery, bounded stdout collection and process exit.
+Timeout, stdin/stdout errors, invalid UTF-8, excess output and nonzero exit
+explicitly refuse `AN0_RECOMPUTE_FAILED` (exit 13), without publishing
+receipt/verdict artifacts. Refusal terminates and reaps only the child
+created for that recompute, never an unrelated process or process group.
+An early child failure is classified from bounded stdout and exit before
+reporting a broken stdin pipe; the stdin error remains explicit secondary
+context. Even a valid digest is refused if input delivery failed.
+The carrier pins `aien-microjob` 0.2.0 at protocols commit
+`7bfb4ee2fda4fee023a8f9b62639efedc1206391`, including canonical countersign
+commitment, per-node fuel and expiry admission checks. This dependency
+integration does not imply that either pending branch is merged.
+
 Regression commands:
 
 ```bash
@@ -109,6 +123,7 @@ cargo test -p oh-volunteer --bin aienet0-serve
 cargo test -p oh-coordinator --bin aienet0-run
 bash scripts/aienet0/controls.sh EVIDENCE_DIR
 bash scripts/aienet0/mutants.sh EVIDENCE_DIR
+bash scripts/aienet0/mutants.sh --self-test
 ```
 
 The scripts document their required key, pin and recompute environment.
@@ -116,9 +131,18 @@ Controls retain the original replay-refusal case and add cached retry.
 Unit tests race two workers and kill a test worker with SIGKILL after
 durable admission, after computation, and after durable completion. The
 fault-injection hooks exist only in test binaries. Mutants remove the lock,
-read/parse refusals, replay refusal, recovery, cached-result reuse and
-no-replace publication as well as the original transport guards. Process
-crash tests do not establish power-loss or storage-device qualification.
+read/parse refusals, replay refusal, recovery, cached-result reuse,
+no-replace publication, transport guards, recompute pin, stdin error and deadline.
+The unmodified workspace and complete controls must pass first. Each
+mutant then has one package/binary-scoped exact regression that must pass
+before mutation and fail at its designated `AN0_SEMANTIC` assertion after
+mutation. Generic test failures, build errors, missing compiler/setup,
+port clashes, missing tests, signals and truncated results are
+`INVALID`/`NOT_RUN`, never `KILLED`, and make the command nonzero. A passing
+mutant is `SURVIVED`, also nonzero. Build outputs are invocation-private.
+The classifier self-test checks semantic kill, setup panic, signal,
+truncated/missing/extra results and survival separately. Process crash
+tests do not establish power-loss or storage-device qualification.
 
 ## Core Crates
 
