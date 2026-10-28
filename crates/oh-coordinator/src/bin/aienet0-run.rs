@@ -477,7 +477,11 @@ fn main() -> ExitCode {
 mod tests {
     use super::*;
     use std::os::unix::fs::symlink;
-    use std::sync::{Arc, Barrier};
+    use std::sync::{Arc, Barrier, Mutex};
+
+    // Keep executable fixture writes separate from other test spawns: a
+    // pre-exec child can retain a writable descriptor and cause ETXTBUSY.
+    static RECOMPUTE_FIXTURES: Mutex<()> = Mutex::new(());
 
     fn scratch() -> PathBuf {
         let dir = std::env::temp_dir().join(format!("an0-output-{}-{}", std::process::id(),
@@ -498,6 +502,7 @@ mod tests {
 
     #[test]
     fn recompute_deadline_covers_output_and_exit() {
+        let _fixture = RECOMPUTE_FIXTURES.lock().unwrap();
         for body in ["exec sleep 2", "exec 1>&-; exec sleep 2",
             "printf '%064d\\n' 0; exec sleep 2"] {
             let (dir, bin, pin) = recompute_script(body);
@@ -512,6 +517,7 @@ mod tests {
 
     #[test]
     fn recompute_deadline_covers_blocked_stdin() {
+        let _fixture = RECOMPUTE_FIXTURES.lock().unwrap();
         let (dir, bin, pin) = recompute_script("exec sleep 2");
         let err = recompute_with_timeout(&bin, &pin, &[0; 1024 * 1024], Duration::from_millis(100))
             .expect_err("AN0_SEMANTIC recompute-deadline");
@@ -521,6 +527,7 @@ mod tests {
 
     #[test]
     fn recompute_refuses_excess_output_and_child_failure() {
+        let _fixture = RECOMPUTE_FIXTURES.lock().unwrap();
         for (body, reason) in [
             ("printf '%067d' 0", "stdout: excess output"),
             ("cat >/dev/null; exit 7", "exit="),
@@ -537,6 +544,7 @@ mod tests {
     #[test]
     #[cfg(target_os = "linux")]
     fn recompute_timeout_reaps_only_its_child() {
+        let _fixture = RECOMPUTE_FIXTURES.lock().unwrap();
         let (dir, bin, _) = recompute_script("");
         let pidfile = dir.join("child.pid");
         fs::write(&bin, format!("#!/bin/sh\necho $$ > '{}'\nexec sleep 2\n",
@@ -556,6 +564,7 @@ mod tests {
 
     #[test]
     fn recompute_refuses_stdin_io_error() {
+        let _fixture = RECOMPUTE_FIXTURES.lock().unwrap();
         let digest = "00".repeat(32);
         let (dir, bin, pin) = recompute_script(&format!("exec 0<&-; printf '{digest}\\n'"));
         let err = recompute_with_timeout(&bin, &pin, &[0; 1024 * 1024], Duration::from_secs(2))
@@ -566,6 +575,7 @@ mod tests {
 
     #[test]
     fn recompute_refuses_stdout_io_error() {
+        let _fixture = RECOMPUTE_FIXTURES.lock().unwrap();
         let (dir, bin, pin) = recompute_script("cat >/dev/null; printf '\\377\\n'");
         let err = recompute_with_timeout(&bin, &pin, b"payload", Duration::from_secs(2))
             .expect_err("AN0_SEMANTIC recompute-stdout");
@@ -575,6 +585,7 @@ mod tests {
 
     #[test]
     fn recompute_accepts_pinned_digest_and_refuses_wrong_pin() {
+        let _fixture = RECOMPUTE_FIXTURES.lock().unwrap();
         let (dir, bin, pin) = recompute_script("cat >/dev/null; printf '%064d\\n' 0");
         assert_eq!(recompute(&bin, &pin, b"payload").unwrap(), [0; 32]);
         let err = recompute(&bin, &"f".repeat(64), b"payload")
