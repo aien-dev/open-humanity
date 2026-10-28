@@ -504,8 +504,8 @@ mod tests {
             let started = Instant::now();
             let err = recompute_with_timeout(&bin, &pin, b"payload", Duration::from_millis(100))
                 .expect_err("AN0_SEMANTIC recompute-deadline");
-            assert!(err.1.contains("timeout"), "AN0_SEMANTIC recompute-deadline: {err:?}");
             assert!(started.elapsed() < Duration::from_secs(1), "AN0_SEMANTIC recompute-deadline");
+            assert!(err.1.contains("timeout"), "unexpected recompute refusal: {err:?}");
             fs::remove_dir_all(dir).unwrap();
         }
     }
@@ -535,12 +535,32 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_os = "linux")]
+    fn recompute_timeout_reaps_only_its_child() {
+        let (dir, bin, _) = recompute_script("");
+        let pidfile = dir.join("child.pid");
+        fs::write(&bin, format!("#!/bin/sh\necho $$ > '{}'\nexec sleep 2\n",
+            pidfile.display())).unwrap();
+        let pin = to_hex(&sha(&fs::read(&bin).unwrap()));
+        let mut unrelated = Command::new("sleep").arg("2").spawn().unwrap();
+        let result = recompute_with_timeout(&bin, &pin, b"", Duration::from_millis(100));
+        let unrelated_running = unrelated.try_wait().unwrap().is_none();
+        unrelated.kill().unwrap();
+        unrelated.wait().unwrap();
+        let pid = fs::read_to_string(&pidfile).unwrap();
+        assert!(result.unwrap_err().1.contains("timeout"));
+        assert!(!Path::new("/proc").join(pid.trim()).exists(), "recompute child was not reaped");
+        assert!(unrelated_running, "recompute affected an unrelated child");
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn recompute_refuses_stdin_io_error() {
         let digest = "00".repeat(32);
         let (dir, bin, pin) = recompute_script(&format!("exec 0<&-; printf '{digest}\\n'"));
         let err = recompute_with_timeout(&bin, &pin, &[0; 1024 * 1024], Duration::from_secs(2))
             .expect_err("AN0_SEMANTIC recompute-stdin");
-        assert!(err.1.contains("stdin:"), "AN0_SEMANTIC recompute-stdin: {err:?}");
+        assert!(err.1.contains("stdin:"), "unexpected recompute refusal: {err:?}");
         fs::remove_dir_all(dir).unwrap();
     }
 
@@ -560,7 +580,7 @@ mod tests {
         let err = recompute(&bin, &"f".repeat(64), b"payload")
             .expect_err("AN0_SEMANTIC recompute-pin");
         assert!(err.1.contains("AN0_RECOMPUTE_UNPINNED"),
-            "AN0_SEMANTIC recompute-pin: {err:?}");
+            "unexpected recompute refusal: {err:?}");
         fs::remove_dir_all(dir).unwrap();
     }
 

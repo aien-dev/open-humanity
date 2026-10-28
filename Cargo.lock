@@ -35,8 +35,8 @@ dependencies = [
 
 [[package]]
 name = "aien-microjob"
-version = "0.1.0"
-source = "git+https://github.com/aien-dev/aien-protocols-mv?rev=a82a8f8b8d2f1edab8ada5d995ae96449fa7302e#a82a8f8b8d2f1edab8ada5d995ae96449fa7302e"
+version = "0.2.0"
+source = "git+https://github.com/aien-dev/aien-protocols-mv?rev=7bfb4ee2fda4fee023a8f9b62639efedc1206391#7bfb4ee2fda4fee023a8f9b62639efedc1206391"
 dependencies = [
  "aien-provenance",
  "p256",
@@ -46,7 +46,7 @@ dependencies = [
 [[package]]
 name = "aien-protocol-types"
 version = "0.1.0"
-source = "git+https://github.com/aien-dev/aien-protocols-mv?rev=a82a8f8b8d2f1edab8ada5d995ae96449fa7302e#a82a8f8b8d2f1edab8ada5d995ae96449fa7302e"
+source = "git+https://github.com/aien-dev/aien-protocols-mv?rev=7bfb4ee2fda4fee023a8f9b62639efedc1206391#7bfb4ee2fda4fee023a8f9b62639efedc1206391"
 dependencies = [
  "hex",
  "serde",
@@ -58,7 +58,7 @@ dependencies = [
 [[package]]
 name = "aien-provenance"
 version = "0.1.0"
-source = "git+https://github.com/aien-dev/aien-protocols-mv?rev=a82a8f8b8d2f1edab8ada5d995ae96449fa7302e#a82a8f8b8d2f1edab8ada5d995ae96449fa7302e"
+source = "git+https://github.com/aien-dev/aien-protocols-mv?rev=7bfb4ee2fda4fee023a8f9b62639efedc1206391#7bfb4ee2fda4fee023a8f9b62639efedc1206391"
 dependencies = [
  "aien-protocol-types",
  "bitflags",
