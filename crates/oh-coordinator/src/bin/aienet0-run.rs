@@ -591,7 +591,7 @@ mod tests {
         symlink(dir.join("missing"), &path).unwrap();
         assert!(write_new(&path, b"must not replace").is_err(),
             "AN0_SEMANTIC output-no-replace");
-        assert!(path.symlink_metadata().unwrap().file_type().is_symlink());
+        assert!(path.symlink_metadata().unwrap().file_type().is_symlink(), "AN0_SEMANTIC output-no-replace: destination replaced");
         fs::remove_dir_all(dir).unwrap();
     }
 
