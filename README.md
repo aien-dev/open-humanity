@@ -161,21 +161,21 @@ There is deliberately no forwarding shim or new runtime dependency.
 The transport controls above also refuse if the retired path reappears.
 
 The current host-test settlement entrypoints are
-[`scripts/aienet0/settle-run.sh`](https://github.com/aien-dev/aien-protocols-mv/blob/91ed69a8ee6e23476ab164be8f9cecea04206786/scripts/aienet0/settle-run.sh)
-and `scripts/aienet0/settle-check.sh` in **aien-protocols-mv #67**.
-Its [interoperability profile](https://github.com/aien-dev/aien-protocols-mv/blob/91ed69a8ee6e23476ab164be8f9cecea04206786/specs/aienet/P0_INTEROP_PROFILE.md#authenticated-local-ledger-adapter)
+[`scripts/aienet0/settle-run.sh`](https://github.com/aien-dev/aien-protocols-mv/blob/9affb8c3a9f9076975cec810295614b13e8e0ce5/scripts/aienet0/settle-run.sh)
+and `scripts/aienet0/settle-check.sh` in merged **aien-protocols-mv #67/#68**.
+Its [interoperability profile](https://github.com/aien-dev/aien-protocols-mv/blob/9affb8c3a9f9076975cec810295614b13e8e0ce5/specs/aienet/P0_INTEROP_PROFILE.md#authenticated-local-ledger-adapter)
 defines the externally provisioned issuer/verifier keys, authority and quote
 pins, actual signed-artifact admission and ambiguous-reserve recovery.
-The only ledger is **Core #794**, `om/tur-ledger/tur-ledger.om`,
-head `5b3b644eed359aa4c96377cdfdba76d11330a95d`, with version-2 journals.
-These are pending PR pins, not merged or deployed claims.
+The only ledger is merged **Core #794**, `om/tur-ledger/tur-ledger.om`,
+source `b65e00b0652a3b426dce1bf77f7fe4eccf5f7473`, with version-2 journals.
+These are merged source pins, not deployed or physical-qualification claims.
 
 Check out the protocols pin separately and explicitly invoke its adapter:
 
 ```bash
 # Supply RUN/SERVE from this carrier, LEDGER from Core #794, plus the
 # carrier test environment documented by the canonical script.
-test "$(git -C "$PROTOCOLS" rev-parse HEAD)" = 91ed69a8ee6e23476ab164be8f9cecea04206786 &&
+test "$(git -C "$PROTOCOLS" rev-parse HEAD)" = 9affb8c3a9f9076975cec810295614b13e8e0ce5 &&
   bash "$PROTOCOLS/scripts/aienet0/settle-check.sh" FRESH_SETTLEMENT_EVIDENCE
 ```
 
@@ -185,9 +185,10 @@ For individual runs, supply the externally pinned `AUTHORITY`, `QUOTE`,
 `ISSUER_KEY` and `VERIFIER_KEY` as documented there, then invoke the
 canonical `settle-run.sh` with `honest` or `tampered-receipt`. A local
 successful retry is not RPC or physical power-loss qualification.
-Historical baseline evidence stays unchanged. Source-retirement before/after
-controls and the canonical integration rerun are recorded in
-`docs/research/2026-10-28-aienet0-settlement-cutover.txt`.
+Historical baseline evidence stays unchanged. The dated
+`docs/research/2026-10-28-aienet0-settlement-cutover.txt` retains its original
+source-retirement and canonical-integration pins; [PR #47](https://github.com/aien-dev/open-humanity/pull/47)
+carries exact-final-head receipts without relabeling those historical runs.
 
 ## Core Crates
 
