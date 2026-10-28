@@ -8,17 +8,26 @@
 //! `VERIFIED <dag_id> <mjr1_sha256> <mjr1_path>` and exits 0.
 //!
 //! Usage: aienet0-run keys --keys DIR
+//!        aienet0-run bundle --keys DIR --out FILE
+//!                    [--m M --k K --n N --seed S] [--op matmul|compile]
+//!                    [--payload-kind K]
 //!        aienet0-run run --listen ADDR --keys DIR --pins DIR --out DIR
 //!                    --recompute BIN --recompute-sha256 HEX
 //!                    [--m M --k K --n N --seed S] [--op matmul|compile]
 //!                    [--payload-kind K] [--resend BUNDLE] [--accept-timeout SECS]
 //!        aienet0-run check --bundle F --mjr1 F --mjv F --keys DIR --pins DIR
 //!
+//! `bundle` only builds and signs the job, writes it to a new FILE and prints
+//! `BUNDLE <dag_id> <path>`, so escrow can be reserved on the dag_id before
+//! anything is sent; `run --resend FILE` then sends exactly those bytes.
+//! Replay is judged by the worker's persistent seen set, so a bundle that was
+//! never sent is admitted on its first `--resend`.
+//!
 //! `--keys DIR`: `transport.seed` (Ed25519 seed), `submitter.p256`,
 //! `verifier.p256` (P-256 scalars), all hex test identities, not a wallet.
 //! `--pins DIR`: `volunteer.ed25519` (32-byte hex) and `executor.p256`
-//! (33-byte compressed hex). `--op compile`, `--payload-kind` and `--resend`
-//! exist for the negative controls (not allowlisted, replay).
+//! (33-byte compressed hex). `--op compile` and `--payload-kind` exist for
+//! the negative controls (not allowlisted).
 //!
 //! Exit: 0 VERIFIED, 2 usage or key files, 10 transport, 11 the worker
 //! refused, 12 the receipt validator refused, 13 recompute refused or
@@ -112,7 +121,7 @@ fn write_new(path: &Path, bytes: &[u8]) -> Result<(), Fail> {
     f.write_all(bytes).map_err(io)?;
     f.sync_all().map_err(io)?;
     fs::rename(&tmp, path).map_err(io)?;
-    if let Some(dir) = path.parent() {
+    if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
         File::open(dir).and_then(|d| d.sync_all()).map_err(io)?;
     }
     Ok(())
@@ -193,27 +202,7 @@ fn run(args: &[String]) -> Result<(), Fail> {
 
     let bundle = match value(args, "--resend") {
         Some(f) => read_bytes(Path::new(&f))?,
-        None => {
-            let job = MatmulU32 {
-                m: num(args, "--m", 64)?,
-                k: num(args, "--k", 64)?,
-                n: num(args, "--n", 64)?,
-                seed: num(args, "--seed", 0xA1E7_0001)?,
-            };
-            let mut payload = job.encode().to_vec();
-            payload[0] = num(args, "--payload-kind", payload[0])?;
-            let op = match value(args, "--op").as_deref() {
-                None | Some("matmul") => compute_op::MATMUL,
-                Some("compile") => compute_op::COMPILE,
-                Some(o) => return Err(Fail(2, format!("unknown --op {o}"))),
-            };
-            let mut nonce = [0u8; 16];
-            File::open("/dev/urandom")
-                .and_then(|mut f| f.read_exact(&mut nonce))
-                .map_err(|e| Fail(15, format!("/dev/urandom: {e}")))?;
-            let doc = build_document(&payload, op, nonce, &public_key(&submitter), now());
-            seal_bundle(&doc, &payload, &submitter)
-        }
+        None => make_bundle(args, &submitter)?,
     };
     let (_, _, payload, doc) = split_bundle(&bundle).map_err(|r| refused(2, r))?;
     let (payload, doc) = (payload.to_vec(), doc.to_vec());
@@ -221,6 +210,14 @@ fn run(args: &[String]) -> Result<(), Fail> {
     let bundle_path = out_dir.join(format!("{dag}.an0b"));
     if !bundle_path.exists() {
         write_new(&bundle_path, &bundle)?;
+    } else if read_bytes(&bundle_path)? != bundle {
+        return Err(Fail(
+            15,
+            format!(
+                "REFUSED AN0_OUTPUT_EXISTS {} differs",
+                bundle_path.display()
+            ),
+        ));
     }
     eprintln!(
         "aienet0-run: dag_id={dag} payload={} bundle={} coordinator={}",
@@ -267,6 +264,44 @@ fn run(args: &[String]) -> Result<(), Fail> {
         to_hex(&sha(&receipt)),
         mjr1_path.display()
     );
+    Ok(())
+}
+
+/// Build and sign one job from the command-line shape. A fresh nonce makes
+/// every bundle, and so every dag_id, distinct.
+fn make_bundle(args: &[String], submitter: &P256) -> Result<Vec<u8>, Fail> {
+    let job = MatmulU32 {
+        m: num(args, "--m", 64)?,
+        k: num(args, "--k", 64)?,
+        n: num(args, "--n", 64)?,
+        seed: num(args, "--seed", 0xA1E7_0001)?,
+    };
+    let mut payload = job.encode().to_vec();
+    payload[0] = num(args, "--payload-kind", payload[0])?;
+    let op = match value(args, "--op").as_deref() {
+        None | Some("matmul") => compute_op::MATMUL,
+        Some("compile") => compute_op::COMPILE,
+        Some(o) => return Err(Fail(2, format!("unknown --op {o}"))),
+    };
+    let mut nonce = [0u8; 16];
+    File::open("/dev/urandom")
+        .and_then(|mut f| f.read_exact(&mut nonce))
+        .map_err(|e| Fail(15, format!("/dev/urandom: {e}")))?;
+    let doc = build_document(&payload, op, nonce, &public_key(submitter), now());
+    Ok(seal_bundle(&doc, &payload, submitter))
+}
+
+/// `bundle`: sign one job and store it without sending, for a reservation
+/// keyed on its dag_id.
+fn bundle(args: &[String]) -> Result<(), Fail> {
+    let keys = PathBuf::from(need(args, "--keys")?);
+    let submitter = p256_key(&keys.join("submitter.p256"))?;
+    let path = PathBuf::from(need(args, "--out")?);
+    let bundle = make_bundle(args, &submitter)?;
+    let (_, _, _, doc) = split_bundle(&bundle).map_err(|r| refused(2, r))?;
+    let dag = to_hex(&dag_digest(doc));
+    write_new(&path, &bundle)?;
+    println!("BUNDLE {dag} {}", path.display());
     Ok(())
 }
 
@@ -318,6 +353,7 @@ fn main() -> ExitCode {
             );
             Ok(())
         }),
+        Some("bundle") => bundle(&args),
         Some("run") => run(&args),
         Some("check") => check(&args),
         _ => Err(Fail(
