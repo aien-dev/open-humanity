@@ -211,6 +211,12 @@ cargo test --workspace
 - **Pure Native Systems**: Written in compiled Rust, plus four shell scripts: contributor checks in `scripts/agent-preflight.sh`, the volunteer compute demos `scripts/demo-local.sh` and `scripts/demo-teach.sh`, and the gap measurement `scripts/volunteer-gap.sh`.
 - **Zero Disk Secrets**: The intended credential source is a hardware vault. The coordinator can read its identity seed from atlas-vault, and volunteer network identity seeds must come from atlas-vault. Each program keeps the recovered seed only in memory, and the contributor preflight script fails if a `.env` file is present. This repository does not implement TPM access itself.
 
+## Human-Directed Agentic Engineering
+
+Development follows Human-Directed Agentic Engineering (HDAE): humans define goals, architecture, constraints, acceptance criteria, and stopping points; agents implement, execute checks, diagnose failures, and revise within those boundaries. Human review retains responsibility for claims, acceptance, and release decisions.
+
+For the documented method and a systems-software case study, see Gregory M. Kurtzer, [*Ginux: Building an Independent Kernel That Runs Linux Userspace through Human-Directed Agentic Engineering* (2026)](https://doi.org/10.5281/zenodo.23682548). This describes engineering, not the assistance network's runtime autonomy or an endorsement.
+
 ## License and Governance
 
 Licensed under the Apache License, Version 2.0 (Apache-2.0). See [LICENSE](LICENSE). Project values live in the nonbinding [COVENANT.md](COVENANT.md), which grants and restricts no legal rights.
