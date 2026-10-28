@@ -24,7 +24,13 @@ mutants=(
   "coordinator-pin@crates/oh-core/src/transport.rs@if theirs.identity() != expected {@if false {@wrong-coordinator-key"
   "volunteer-pin@crates/oh-core/src/transport.rs@if theirs.identity() != expected {@if false {@unpinned-volunteer"
   "carrier-bound@crates/oh-core/src/carrier.rs@if len < min || len > max {@if false {@baseline"
-  "replay@crates/oh-volunteer/src/bin/aienet0-serve.rs@if !mark_seen(&state, &dag)? {@if { mark_seen(&state, &dag)?; false } {@replay"
+  "replay@crates/oh-volunteer/src/bin/aienet0-serve.rs@if !retry {@if false {@replay"
+  "state-lock@crates/oh-volunteer/src/bin/aienet0-serve.rs@lock.try_lock().map_err(|e| Fail(15, format!(\"state lock: {e}\")))?;@let _ = &lock;@baseline"
+  "state-read@crates/oh-volunteer/src/bin/aienet0-serve.rs@Err(e) => return Err(state_io(e)),@Err(_) => None,@baseline"
+  "state-parse@crates/oh-volunteer/src/bin/aienet0-serve.rs@if text.is_empty() || !text.ends_with('\\n') {@if false {@baseline"
+  "recovery@crates/oh-volunteer/src/bin/aienet0-serve.rs@Ok(Admission::Execute)@Ok(Admission::Replay)@baseline"
+  "cached-result@crates/oh-volunteer/src/bin/aienet0-serve.rs@return Ok(Admission::Cached(*receipt));@return Ok(Admission::Execute);@retry-completed"
+  "output-no-replace@crates/oh-coordinator/src/bin/aienet0-run.rs@fs::hard_link(&tmp, path).map_err(|e| {@fs::rename(&tmp, path).map_err(|e| {@baseline"
   "recompute-pin@crates/oh-coordinator/src/bin/aienet0-run.rs@if got_sha != want_sha.trim() {@if false {@unpinned-recompute"
 )
 
@@ -35,15 +41,15 @@ exercise() {
   local tree=$1 name=$2 filter=$3
   stage=build
   (cd "$tree" && cargo build -q --release --bin aienet0-run --bin aienet0-serve &&
-    cargo test -q -p oh-core --no-run) >"$E/$name.build.log" 2>&1 || return 1
+    cargo test -q -p oh-core -p oh-volunteer -p oh-coordinator --no-run) >"$E/$name.build.log" 2>&1 || return 1
   stage=tests
-  (cd "$tree" && cargo test -q -p oh-core) >"$E/$name.test.log" 2>&1 || return 1
+  (cd "$tree" && cargo test -q -p oh-core -p oh-volunteer -p oh-coordinator) >"$E/$name.test.log" 2>&1 || return 1
   stage=control
   local st
   st=$(mktemp -d)
   RUN=$CARGO_TARGET_DIR/release/aienet0-run SERVE=$CARGO_TARGET_DIR/release/aienet0-serve \
     OUT=$st/out WSTATE=$st/wstate FILTER="^(baseline|$filter)\$" \
-    "$root/scripts/aienet0/controls.sh" "$E/$name.controls" >"$E/$name.controls.log" 2>&1
+    bash "$root/scripts/aienet0/controls.sh" "$E/$name.controls" >"$E/$name.controls.log" 2>&1
   local rc=$?
   rm -rf "$st"
   return $rc
