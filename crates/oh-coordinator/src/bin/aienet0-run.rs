@@ -169,6 +169,7 @@ fn recompute_with_timeout(
         .stderr(Stdio::null())
         .spawn()
         .map_err(|e| failed(format!("spawn: {e}")))?;
+    let mut stdin_error = None;
     let result = (|| {
         let mut sent = 0;
         let mut input_closed = false;
@@ -181,19 +182,19 @@ fn recompute_with_timeout(
             if Instant::now() >= deadline {
                 return Err(failed("timeout".into()));
             }
-            if sent < payload.len() {
+            if sent < payload.len() && !input_closed {
                 match input.write(&payload[sent..]) {
-                    Ok(0) => return Err(failed("stdin: write zero".into())),
+                    Ok(0) => stdin_error = Some(std::io::ErrorKind::WriteZero.into()),
                     Ok(n) => sent += n,
                     Err(e) if matches!(e.kind(), std::io::ErrorKind::WouldBlock |
                         std::io::ErrorKind::Interrupted) => {}
-                    // AN0-GUARD recompute-stdin
-                    Err(e) => return Err(failed(format!("stdin: {e}"))),
+                    Err(e) => stdin_error = Some(e),
                 }
             }
-            if sent == payload.len() && !input_closed {
-                input.shutdown(std::net::Shutdown::Write)
-                    .map_err(|e| failed(format!("stdin: {e}")))?;
+            if (sent == payload.len() || stdin_error.is_some()) && !input_closed {
+                if let Err(e) = input.shutdown(std::net::Shutdown::Write) {
+                    stdin_error.get_or_insert(e);
+                }
                 input_closed = true;
             }
             if !eof {
@@ -222,14 +223,25 @@ fn recompute_with_timeout(
                     }
                     let out = std::str::from_utf8(&bytes[..used])
                         .map_err(|e| failed(format!("stdout: {e}")))?;
-                    return from_hex::<32>(out)
-                        .ok_or_else(|| failed("bad output".into()));
+                    let digest = from_hex::<32>(out)
+                        .ok_or_else(|| failed("bad output".into()))?;
+                    // Classify the child's output/exit before a write failure:
+                    // an early-exiting child can close stdin before we write.
+                    // A valid digest must never hide an input delivery error.
+                    // AN0-GUARD recompute-stdin
+                    if let Some(e) = stdin_error.take() {
+                        return Err(failed(format!("stdin: {e}")));
+                    }
+                    return Ok(digest);
                 }
             }
             thread::sleep(Duration::from_millis(5));
         }
     })();
     if let Err(mut err) = result {
+        if let Some(e) = stdin_error {
+            err.1.push_str(&format!("; stdin: {e}"));
+        }
         // Signal only this owned, unreaped child, never a process group or
         // a PID discovered elsewhere. Reap it on every refusal path.
         match child.try_wait() {
@@ -482,6 +494,8 @@ mod tests {
     // Keep executable fixture writes separate from other test spawns: a
     // pre-exec child can retain a writable descriptor and cause ETXTBUSY.
     static RECOMPUTE_FIXTURES: Mutex<()> = Mutex::new(());
+    // Only mutual exclusion is shared, not mutable fixture state. Preserve
+    // the first failed assertion without cascading poisoned-lock failures.
 
     fn scratch() -> PathBuf {
         let dir = std::env::temp_dir().join(format!("an0-output-{}-{}", std::process::id(),
@@ -502,7 +516,7 @@ mod tests {
 
     #[test]
     fn recompute_deadline_covers_output_and_exit() {
-        let _fixture = RECOMPUTE_FIXTURES.lock().unwrap();
+        let _fixture = RECOMPUTE_FIXTURES.lock().unwrap_or_else(|e| e.into_inner());
         for body in ["exec sleep 2", "exec 1>&-; exec sleep 2",
             "printf '%064d\\n' 0; exec sleep 2"] {
             let (dir, bin, pin) = recompute_script(body);
@@ -517,7 +531,7 @@ mod tests {
 
     #[test]
     fn recompute_deadline_covers_blocked_stdin() {
-        let _fixture = RECOMPUTE_FIXTURES.lock().unwrap();
+        let _fixture = RECOMPUTE_FIXTURES.lock().unwrap_or_else(|e| e.into_inner());
         let (dir, bin, pin) = recompute_script("exec sleep 2");
         let err = recompute_with_timeout(&bin, &pin, &[0; 1024 * 1024], Duration::from_millis(100))
             .expect_err("AN0_SEMANTIC recompute-deadline");
@@ -527,7 +541,7 @@ mod tests {
 
     #[test]
     fn recompute_refuses_excess_output_and_child_failure() {
-        let _fixture = RECOMPUTE_FIXTURES.lock().unwrap();
+        let _fixture = RECOMPUTE_FIXTURES.lock().unwrap_or_else(|e| e.into_inner());
         for (body, reason) in [
             ("printf '%067d' 0", "stdout: excess output"),
             ("cat >/dev/null; exit 7", "exit="),
@@ -542,9 +556,32 @@ mod tests {
     }
 
     #[test]
+    fn recompute_classifies_child_failure_after_broken_stdin() {
+        let _fixture = RECOMPUTE_FIXTURES.lock().unwrap_or_else(|e| e.into_inner());
+        for (body, reason, reads_to_exit) in [
+            ("printf '%067d' 0", "stdout: excess output", false),
+            ("exit 7", "exit=", true),
+            ("printf 'bad\\n'", "bad output", true),
+            ("printf '\\377\\n'", "stdout:", true),
+        ] {
+            let (dir, bin, pin) = recompute_script(&format!(
+                "exec 0<&-; sleep 0.05; {body}"));
+            let err = recompute_with_timeout(&bin, &pin, &[0; 1024 * 1024], Duration::from_secs(2))
+                .expect_err("child failure must refuse");
+            assert!(err.1.contains(reason), "{err:?}");
+            // Excess output can refuse immediately, before a stdin error is
+            // observed. Other cases drain to exit and retain that error.
+            if reads_to_exit {
+                assert!(err.1.contains("; stdin:"), "input failure must remain explicit: {err:?}");
+            }
+            fs::remove_dir_all(dir).unwrap();
+        }
+    }
+
+    #[test]
     #[cfg(target_os = "linux")]
     fn recompute_timeout_reaps_only_its_child() {
-        let _fixture = RECOMPUTE_FIXTURES.lock().unwrap();
+        let _fixture = RECOMPUTE_FIXTURES.lock().unwrap_or_else(|e| e.into_inner());
         let (dir, bin, _) = recompute_script("");
         let pidfile = dir.join("child.pid");
         fs::write(&bin, format!("#!/bin/sh\necho $$ > '{}'\nexec sleep 2\n",
@@ -564,7 +601,7 @@ mod tests {
 
     #[test]
     fn recompute_refuses_stdin_io_error() {
-        let _fixture = RECOMPUTE_FIXTURES.lock().unwrap();
+        let _fixture = RECOMPUTE_FIXTURES.lock().unwrap_or_else(|e| e.into_inner());
         let digest = "00".repeat(32);
         let (dir, bin, pin) = recompute_script(&format!("exec 0<&-; printf '{digest}\\n'"));
         let err = recompute_with_timeout(&bin, &pin, &[0; 1024 * 1024], Duration::from_secs(2))
@@ -575,7 +612,7 @@ mod tests {
 
     #[test]
     fn recompute_refuses_stdout_io_error() {
-        let _fixture = RECOMPUTE_FIXTURES.lock().unwrap();
+        let _fixture = RECOMPUTE_FIXTURES.lock().unwrap_or_else(|e| e.into_inner());
         let (dir, bin, pin) = recompute_script("cat >/dev/null; printf '\\377\\n'");
         let err = recompute_with_timeout(&bin, &pin, b"payload", Duration::from_secs(2))
             .expect_err("AN0_SEMANTIC recompute-stdout");
@@ -585,7 +622,7 @@ mod tests {
 
     #[test]
     fn recompute_accepts_pinned_digest_and_refuses_wrong_pin() {
-        let _fixture = RECOMPUTE_FIXTURES.lock().unwrap();
+        let _fixture = RECOMPUTE_FIXTURES.lock().unwrap_or_else(|e| e.into_inner());
         let (dir, bin, pin) = recompute_script("cat >/dev/null; printf '%064d\\n' 0");
         assert_eq!(recompute(&bin, &pin, b"payload").unwrap(), [0; 32]);
         let err = recompute(&bin, &"f".repeat(64), b"payload")

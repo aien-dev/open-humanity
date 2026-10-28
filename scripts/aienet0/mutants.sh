@@ -89,7 +89,7 @@ mutants=(
   'output-no-replace@crates/oh-coordinator/src/bin/aienet0-run.rs@fs::hard_link(&tmp, path).map_err(|e| {@fs::rename(&tmp, path).map_err(|e| {@oh-coordinator@--bin aienet0-run@tests::write_new_refuses_dangling_destination'
   'recompute-pin@crates/oh-coordinator/src/bin/aienet0-run.rs@if got_sha != want_sha.trim() {@if false {@oh-coordinator@--bin aienet0-run@tests::recompute_accepts_pinned_digest_and_refuses_wrong_pin'
   'recompute-deadline@crates/oh-coordinator/src/bin/aienet0-run.rs@if Instant::now() >= deadline {@if false {@oh-coordinator@--bin aienet0-run@tests::recompute_deadline_covers_output_and_exit'
-  'recompute-stdin@crates/oh-coordinator/src/bin/aienet0-run.rs@Err(e) => return Err(failed(format!("stdin: {e}"))),@Err(_) => { sent = payload.len(); input_closed = true; },@oh-coordinator@--bin aienet0-run@tests::recompute_refuses_stdin_io_error'
+  'recompute-stdin@crates/oh-coordinator/src/bin/aienet0-run.rs@if let Some(e) = stdin_error.take() {@if let Some(e) = None::<std::io::Error> {@oh-coordinator@--bin aienet0-run@tests::recompute_refuses_stdin_io_error'
 )
 
 copy() {
