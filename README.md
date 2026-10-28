@@ -108,6 +108,9 @@ Timeout, stdin/stdout errors, invalid UTF-8, excess output and nonzero exit
 explicitly refuse `AN0_RECOMPUTE_FAILED` (exit 13), without publishing
 receipt/verdict artifacts. Refusal terminates and reaps only the child
 created for that recompute, never an unrelated process or process group.
+An early child failure is classified from bounded stdout and exit before
+reporting a broken stdin pipe; the stdin error remains explicit secondary
+context. Even a valid digest is refused if input delivery failed.
 The carrier pins `aien-microjob` 0.2.0 at protocols commit
 `7bfb4ee2fda4fee023a8f9b62639efedc1206391`, including canonical countersign
 commitment, per-node fuel and expiry admission checks. This dependency
