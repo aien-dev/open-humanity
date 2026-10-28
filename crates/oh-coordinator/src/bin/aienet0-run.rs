@@ -46,6 +46,8 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
+use std::os::fd::OwnedFd;
+use std::os::unix::net::UnixStream;
 use std::process::{Command, ExitCode, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
@@ -137,6 +139,12 @@ fn write_new(path: &Path, bytes: &[u8]) -> Result<(), Fail> {
 
 /// Run the pinned Omega recompute on the payload; returns its digest.
 fn recompute(bin: &Path, want_sha: &str, payload: &[u8]) -> Result<[u8; 32], Fail> {
+    recompute_with_timeout(bin, want_sha, payload, Duration::from_secs(30))
+}
+
+fn recompute_with_timeout(
+    bin: &Path, want_sha: &str, payload: &[u8], timeout: Duration,
+) -> Result<[u8; 32], Fail> {
     let got_sha = to_hex(&sha(&read_bytes(bin)?));
     // AN0-GUARD recompute-pin
     if got_sha != want_sha.trim() {
@@ -145,30 +153,105 @@ fn recompute(bin: &Path, want_sha: &str, payload: &[u8]) -> Result<[u8; 32], Fai
             format!("REFUSED AN0_RECOMPUTE_UNPINNED {got_sha}"),
         ));
     }
+    let failed = |detail| Fail(13, format!("REFUSED AN0_RECOMPUTE_FAILED {detail}"));
+    // Nonblocking parent endpoints keep stdin, stdout and exit under one
+    // deadline. No pipe reader/writer thread can outlive a refused child.
+    let (mut input, child_input) = UnixStream::pair()
+        .map_err(|e| failed(format!("stdin: {e}")))?;
+    let (mut output, child_output) = UnixStream::pair()
+        .map_err(|e| failed(format!("stdout: {e}")))?;
+    input.set_nonblocking(true).map_err(|e| failed(format!("stdin: {e}")))?;
+    output.set_nonblocking(true).map_err(|e| failed(format!("stdout: {e}")))?;
+    let deadline = Instant::now() + timeout;
     let mut child = Command::new(bin)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
+        .stdin(Stdio::from(OwnedFd::from(child_input)))
+        .stdout(Stdio::from(OwnedFd::from(child_output)))
         .stderr(Stdio::null())
         .spawn()
-        .map_err(|e| Fail(13, format!("REFUSED AN0_RECOMPUTE_FAILED spawn: {e}")))?;
-    child.stdin.take().expect("piped").write_all(payload).ok();
-    let mut out = String::new();
-    child
-        .stdout
-        .take()
-        .expect("piped")
-        .read_to_string(&mut out)
-        .ok();
-    let status = child
-        .wait()
-        .map_err(|e| Fail(13, format!("REFUSED AN0_RECOMPUTE_FAILED {e}")))?;
-    if !status.success() {
-        return Err(Fail(
-            13,
-            format!("REFUSED AN0_RECOMPUTE_FAILED exit={status}"),
-        ));
+        .map_err(|e| failed(format!("spawn: {e}")))?;
+    let result = (|| {
+        let mut sent = 0;
+        let mut input_closed = false;
+        let mut bytes = [0; 66]; // one hex digest, optionally CRLF
+        let mut used = 0;
+        let mut eof = false;
+        let mut status = None;
+        loop {
+            // AN0-GUARD recompute-deadline
+            if Instant::now() >= deadline {
+                return Err(failed("timeout".into()));
+            }
+            if sent < payload.len() {
+                match input.write(&payload[sent..]) {
+                    Ok(0) => return Err(failed("stdin: write zero".into())),
+                    Ok(n) => sent += n,
+                    Err(e) if matches!(e.kind(), std::io::ErrorKind::WouldBlock |
+                        std::io::ErrorKind::Interrupted) => {}
+                    // AN0-GUARD recompute-stdin
+                    Err(e) => return Err(failed(format!("stdin: {e}"))),
+                }
+            }
+            if sent == payload.len() && !input_closed {
+                input.shutdown(std::net::Shutdown::Write)
+                    .map_err(|e| failed(format!("stdin: {e}")))?;
+                input_closed = true;
+            }
+            if !eof {
+                let mut chunk = [0; 67];
+                match output.read(&mut chunk) {
+                    Ok(0) => eof = true,
+                    Ok(n) => {
+                        if n > bytes.len() - used {
+                            return Err(failed("stdout: excess output".into()));
+                        }
+                        bytes[used..used + n].copy_from_slice(&chunk[..n]);
+                        used += n;
+                    }
+                    Err(e) if matches!(e.kind(), std::io::ErrorKind::WouldBlock |
+                        std::io::ErrorKind::Interrupted) => {}
+                    Err(e) => return Err(failed(format!("stdout: {e}"))),
+                }
+            }
+            if status.is_none() {
+                status = child.try_wait().map_err(|e| failed(format!("wait: {e}")))?;
+            }
+            if let Some(status) = status {
+                if eof && input_closed {
+                    if !status.success() {
+                        return Err(failed(format!("exit={status}")));
+                    }
+                    let out = std::str::from_utf8(&bytes[..used])
+                        .map_err(|e| failed(format!("stdout: {e}")))?;
+                    return from_hex::<32>(out)
+                        .ok_or_else(|| failed("bad output".into()));
+                }
+            }
+            thread::sleep(Duration::from_millis(5));
+        }
+    })();
+    if let Err(mut err) = result {
+        // Signal only this owned, unreaped child, never a process group or
+        // a PID discovered elsewhere. Reap it on every refusal path.
+        match child.try_wait() {
+            Ok(Some(_)) => {}
+            Ok(None) => {
+                if let Err(e) = child.kill() {
+                    err.1.push_str(&format!("; child kill: {e}"));
+                }
+            }
+            Err(e) => {
+                err.1.push_str(&format!("; child status: {e}"));
+                if let Err(e) = child.kill() {
+                    err.1.push_str(&format!("; child kill: {e}"));
+                }
+            }
+        }
+        if let Err(e) = child.wait() {
+            err.1.push_str(&format!("; child reap: {e}"));
+        }
+        return Err(err);
     }
-    from_hex::<32>(&out).ok_or_else(|| Fail(13, "REFUSED AN0_RECOMPUTE_FAILED bad output".into()))
+    result
 }
 
 fn accept(listen: &str, timeout: Duration) -> Result<std::net::TcpStream, Fail> {
@@ -403,12 +486,91 @@ mod tests {
         dir
     }
 
+    fn recompute_script(body: &str) -> (PathBuf, PathBuf, String) {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = scratch();
+        let bin = dir.join("recompute");
+        fs::write(&bin, format!("#!/bin/sh\n{body}\n")).unwrap();
+        fs::set_permissions(&bin, fs::Permissions::from_mode(0o700)).unwrap();
+        let digest = to_hex(&sha(&fs::read(&bin).unwrap()));
+        (dir, bin, digest)
+    }
+
+    #[test]
+    fn recompute_deadline_covers_output_and_exit() {
+        for body in ["exec sleep 2", "exec 1>&-; exec sleep 2",
+            "printf '%064d\\n' 0; exec sleep 2"] {
+            let (dir, bin, pin) = recompute_script(body);
+            let started = Instant::now();
+            let err = recompute_with_timeout(&bin, &pin, b"payload", Duration::from_millis(100))
+                .expect_err("AN0_SEMANTIC recompute-deadline");
+            assert!(err.1.contains("timeout"), "AN0_SEMANTIC recompute-deadline: {err:?}");
+            assert!(started.elapsed() < Duration::from_secs(1), "AN0_SEMANTIC recompute-deadline");
+            fs::remove_dir_all(dir).unwrap();
+        }
+    }
+
+    #[test]
+    fn recompute_deadline_covers_blocked_stdin() {
+        let (dir, bin, pin) = recompute_script("exec sleep 2");
+        let err = recompute_with_timeout(&bin, &pin, &[0; 1024 * 1024], Duration::from_millis(100))
+            .expect_err("AN0_SEMANTIC recompute-deadline");
+        assert!(err.1.contains("timeout"), "AN0_SEMANTIC recompute-deadline: {err:?}");
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn recompute_refuses_excess_output_and_child_failure() {
+        for (body, reason) in [
+            ("printf '%067d' 0", "stdout: excess output"),
+            ("cat >/dev/null; exit 7", "exit="),
+            ("cat >/dev/null; printf 'bad\\n'", "bad output"),
+        ] {
+            let (dir, bin, pin) = recompute_script(body);
+            let err = recompute_with_timeout(&bin, &pin, b"payload", Duration::from_secs(2))
+                .expect_err("invalid recompute must refuse");
+            assert!(err.1.contains(reason), "{err:?}");
+            fs::remove_dir_all(dir).unwrap();
+        }
+    }
+
+    #[test]
+    fn recompute_refuses_stdin_io_error() {
+        let digest = "00".repeat(32);
+        let (dir, bin, pin) = recompute_script(&format!("exec 0<&-; printf '{digest}\\n'"));
+        let err = recompute_with_timeout(&bin, &pin, &[0; 1024 * 1024], Duration::from_secs(2))
+            .expect_err("AN0_SEMANTIC recompute-stdin");
+        assert!(err.1.contains("stdin:"), "AN0_SEMANTIC recompute-stdin: {err:?}");
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn recompute_refuses_stdout_io_error() {
+        let (dir, bin, pin) = recompute_script("cat >/dev/null; printf '\\377\\n'");
+        let err = recompute_with_timeout(&bin, &pin, b"payload", Duration::from_secs(2))
+            .expect_err("AN0_SEMANTIC recompute-stdout");
+        assert!(err.1.contains("stdout:"), "AN0_SEMANTIC recompute-stdout: {err:?}");
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn recompute_accepts_pinned_digest_and_refuses_wrong_pin() {
+        let (dir, bin, pin) = recompute_script("cat >/dev/null; printf '%064d\\n' 0");
+        assert_eq!(recompute(&bin, &pin, b"payload").unwrap(), [0; 32]);
+        let err = recompute(&bin, &"f".repeat(64), b"payload")
+            .expect_err("AN0_SEMANTIC recompute-pin");
+        assert!(err.1.contains("AN0_RECOMPUTE_UNPINNED"),
+            "AN0_SEMANTIC recompute-pin: {err:?}");
+        fs::remove_dir_all(dir).unwrap();
+    }
+
     #[test]
     fn write_new_refuses_dangling_destination() {
         let dir = scratch();
         let path = dir.join("result");
         symlink(dir.join("missing"), &path).unwrap();
-        assert!(write_new(&path, b"must not replace").is_err());
+        assert!(write_new(&path, b"must not replace").is_err(),
+            "AN0_SEMANTIC output-no-replace");
         assert!(path.symlink_metadata().unwrap().file_type().is_symlink());
         fs::remove_dir_all(dir).unwrap();
     }

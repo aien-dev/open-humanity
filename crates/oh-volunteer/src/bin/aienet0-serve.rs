@@ -434,7 +434,7 @@ mod tests {
         for bytes in invalid {
             let dir = scratch();
             fs::write(dir.join("seen"), &bytes).unwrap();
-            assert!(State::open(&dir).is_err(), "corrupt state admitted a job");
+            assert!(State::open(&dir).is_err(), "AN0_SEMANTIC state-parse: corrupt state admitted a job");
             assert_eq!(fs::read(dir.join("seen")).unwrap(), bytes);
             fs::remove_dir_all(dir).unwrap();
         }
@@ -448,7 +448,7 @@ mod tests {
         fs::set_permissions(&path, fs::Permissions::from_mode(0o200)).unwrap();
         let result = State::open(&dir);
         fs::set_permissions(&path, fs::Permissions::from_mode(0o600)).unwrap();
-        assert!(result.is_err(), "unreadable state admitted a job");
+        assert!(result.is_err(), "AN0_SEMANTIC state-read: unreadable state admitted a job");
         assert_eq!(fs::read_to_string(&path).unwrap(), format!("{}\n", "b".repeat(64)));
         fs::remove_dir_all(dir).unwrap();
     }
@@ -557,20 +557,21 @@ mod tests {
             let excluded = State::open(&dir).is_err();
             child.kill().unwrap();
             assert_eq!(child.wait().unwrap().signal(), Some(9));
-            assert!(excluded, "live worker did not exclude another process");
+            assert!(excluded, "AN0_SEMANTIC state-lock: live worker did not exclude another process");
             let (a, bundle, exec) = fixture();
             let dag = to_hex(&a.digest);
             let mut state = State::open(&dir).unwrap();
             let receipt = state.run(&dag, bundle, public_key(&exec), false, || Ok(witnessed_result(&dir, &a, &exec))).unwrap();
             let expected = result(&a, &exec);
             if phase == "done" {
-                assert!(receipt.is_none(), "default completed replay must refuse");
+                assert!(receipt.is_none(), "AN0_SEMANTIC replay: default completed replay must refuse");
             } else {
-                assert_eq!(receipt, Some(expected), "interrupted admission must resume");
+                assert_eq!(receipt, Some(expected), "AN0_SEMANTIC recovery: interrupted admission must resume");
             }
             drop(state);
             let mut state = State::open(&dir).unwrap();
-            let cached = state.run(&dag, bundle, public_key(&exec), true, || panic!("completed job re-executed")).unwrap();
+            let cached = state.run(&dag, bundle, public_key(&exec), true, ||
+                panic!("AN0_SEMANTIC cached-result: completed job re-executed")).unwrap();
             assert_eq!(cached, Some(expected));
             check_receipt(&a.document, &cached.unwrap(), public_key(&exec), 1_800_000_000).unwrap();
             assert!(state.run(&dag, [0; 32], public_key(&exec), true, || panic!("mismatched bundle executed")).is_err());
