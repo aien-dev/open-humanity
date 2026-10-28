@@ -151,23 +151,25 @@ impl State {
             }
             if let Some(records) = text.strip_prefix(STATE_HEADER) {
                 for line in records.split_terminator('\n') {
-                    let fields: Vec<_> = line.split(' ').collect();
-                    let (dag, record) = match fields.as_slice() {
-                        ["legacy", dag] => (*dag, JobState::Legacy),
-                        [status @ ("admitted" | "done"), dag, bundle, executor, rest @ ..] => {
-                            let receipt = match (*status, rest) {
-                                ("admitted", []) => None,
-                                ("done", [bytes]) => {
+                    let mut fields = line.split(' ');
+                    let fields = [fields.next(), fields.next(), fields.next(),
+                        fields.next(), fields.next(), fields.next()];
+                    let (dag, record) = match fields {
+                        [Some("legacy"), Some(dag), None, None, None, None] => (dag, JobState::Legacy),
+                        [Some(status @ ("admitted" | "done")), Some(dag), Some(bundle), Some(executor), last, None] => {
+                            let receipt = match (status, last) {
+                                ("admitted", None) => None,
+                                ("done", Some(bytes)) => {
                                     let bytes = hex::<RECEIPT_LEN>(bytes)?;
                                     let r = decode_receipt(&bytes).map_err(|_| malformed())?;
-                                    if to_hex(&r.dag_digest) != *dag || to_hex(&r.signer_key) != *executor {
+                                    if to_hex(&r.dag_digest) != dag || to_hex(&r.signer_key) != executor {
                                         return Err(malformed());
                                     }
                                     Some(bytes)
                                 }
                                 _ => return Err(malformed()),
                             };
-                            (*dag, JobState::Job { bundle: hex(bundle)?, executor: hex(executor)?, receipt })
+                            (dag, JobState::Job { bundle: hex(bundle)?, executor: hex(executor)?, receipt })
                         }
                         _ => return Err(malformed()),
                     };
