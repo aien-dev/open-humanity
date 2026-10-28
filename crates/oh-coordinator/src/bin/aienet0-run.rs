@@ -558,18 +558,22 @@ mod tests {
     #[test]
     fn recompute_classifies_child_failure_after_broken_stdin() {
         let _fixture = RECOMPUTE_FIXTURES.lock().unwrap_or_else(|e| e.into_inner());
-        for (body, reason) in [
-            ("printf '%067d' 0", "stdout: excess output"),
-            ("exit 7", "exit="),
-            ("printf 'bad\\n'", "bad output"),
-            ("printf '\\377\\n'", "stdout:"),
+        for (body, reason, reads_to_exit) in [
+            ("printf '%067d' 0", "stdout: excess output", false),
+            ("exit 7", "exit=", true),
+            ("printf 'bad\\n'", "bad output", true),
+            ("printf '\\377\\n'", "stdout:", true),
         ] {
             let (dir, bin, pin) = recompute_script(&format!(
                 "exec 0<&-; sleep 0.05; {body}"));
             let err = recompute_with_timeout(&bin, &pin, &[0; 1024 * 1024], Duration::from_secs(2))
                 .expect_err("child failure must refuse");
             assert!(err.1.contains(reason), "{err:?}");
-            assert!(err.1.contains("; stdin:"), "input failure must remain explicit: {err:?}");
+            // Excess output can refuse immediately, before a stdin error is
+            // observed. Other cases drain to exit and retain that error.
+            if reads_to_exit {
+                assert!(err.1.contains("; stdin:"), "input failure must remain explicit: {err:?}");
+            }
             fs::remove_dir_all(dir).unwrap();
         }
     }
