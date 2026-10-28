@@ -90,6 +90,12 @@ pub fn keypair_from_vault(vault_bin: &Path, name: &str) -> Result<Keypair, Strin
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    // Exclude writable executable fixtures from every other vault spawn in
+    // this test process. A concurrent pre-exec child can inherit the writer
+    // descriptor and keep the fixture ETXTBUSY after the writer closes it.
+    static VAULT_FIXTURES: Mutex<()> = Mutex::new(());
 
     const SEED_HEX: &str = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
 
@@ -124,6 +130,7 @@ mod tests {
 
     #[test]
     fn test_vault_that_cannot_run_or_fails_is_an_error() {
+        let _fixture = VAULT_FIXTURES.lock().unwrap();
         let missing = keypair_from_vault(Path::new("/nonexistent/atlas-vault"), "k");
         assert!(missing.err().unwrap().contains("cannot run"));
         let failing = keypair_from_vault(Path::new("/bin/false"), "k");
@@ -133,6 +140,7 @@ mod tests {
 
     #[test]
     fn test_vault_stdout_becomes_the_key() {
+        let _fixture = VAULT_FIXTURES.lock().unwrap();
         // A stand-in vault: a shell script that answers `get oh-test-key`
         // with the seed and refuses anything else.
         let dir = std::env::temp_dir().join(format!("oh-vault-test-{}", std::process::id()));

@@ -121,6 +121,7 @@ Regression commands:
 ```bash
 cargo test -p oh-volunteer --bin aienet0-serve
 cargo test -p oh-coordinator --bin aienet0-run
+bash scripts/aienet0/controls.sh --settlement-source .
 bash scripts/aienet0/controls.sh EVIDENCE_DIR
 bash scripts/aienet0/mutants.sh EVIDENCE_DIR
 bash scripts/aienet0/mutants.sh --self-test
@@ -143,6 +144,51 @@ mutant is `SURVIVED`, also nonzero. Build outputs are invocation-private.
 The classifier self-test checks semantic kill, setup panic, signal,
 truncated/missing/extra results and survival separately. Process crash
 tests do not establish power-loss or storage-device qualification.
+
+The identity-vault process tests share a test-only executable-fixture mutex.
+Both vault-spawning tests hold it before fixture creation or process spawn
+through child completion and cleanup. This excludes a concurrent pre-exec
+child retaining the fixture's writable descriptor. It does not serialize
+the workspace, change production vault calls, retry errors or ignore tests.
+
+### Authenticated settlement: canonical protocols adapter
+
+Open Humanity owns the signed job carrier, not a second ledger adapter.
+The old `scripts/aienet0/settle-run.sh` was removed: it called unsigned
+Core #792 commands and trusted a `VERIFIED` stdout line. Do not restore
+or execute that historical entrypoint, or its immutable `.at-run` copies.
+There is deliberately no forwarding shim or new runtime dependency.
+The transport controls above also refuse if the retired path reappears.
+
+The current host-test settlement entrypoints are
+[`scripts/aienet0/settle-run.sh`](https://github.com/aien-dev/aien-protocols-mv/blob/9affb8c3a9f9076975cec810295614b13e8e0ce5/scripts/aienet0/settle-run.sh)
+and `scripts/aienet0/settle-check.sh` in merged **aien-protocols-mv #67/#68**.
+Its [interoperability profile](https://github.com/aien-dev/aien-protocols-mv/blob/9affb8c3a9f9076975cec810295614b13e8e0ce5/specs/aienet/P0_INTEROP_PROFILE.md#authenticated-local-ledger-adapter)
+defines the externally provisioned issuer/verifier keys, authority and quote
+pins, actual signed-artifact admission and ambiguous-reserve recovery.
+The only ledger is merged **Core #794**, `om/tur-ledger/tur-ledger.om`,
+source `b65e00b0652a3b426dce1bf77f7fe4eccf5f7473`, with version-2 journals.
+These are merged source pins, not deployed or physical-qualification claims.
+
+Check out the protocols pin separately and explicitly invoke its adapter:
+
+```bash
+# Supply RUN/SERVE from this carrier, LEDGER from Core #794, plus the
+# carrier test environment documented by the canonical script.
+test "$(git -C "$PROTOCOLS" rev-parse HEAD)" = 9affb8c3a9f9076975cec810295614b13e8e0ce5 &&
+  bash "$PROTOCOLS/scripts/aienet0/settle-check.sh" FRESH_SETTLEMENT_EVIDENCE
+```
+
+The check provisions disposable tmpfs test issuer/verifier keys and tests
+honest, forged receipt/attestation, false stdout and write-failure recovery.
+For individual runs, supply the externally pinned `AUTHORITY`, `QUOTE`,
+`ISSUER_KEY` and `VERIFIER_KEY` as documented there, then invoke the
+canonical `settle-run.sh` with `honest` or `tampered-receipt`. A local
+successful retry is not RPC or physical power-loss qualification.
+Historical baseline evidence stays unchanged. The dated
+`docs/research/2026-10-28-aienet0-settlement-cutover.txt` retains its original
+source-retirement and canonical-integration pins; [PR #47](https://github.com/aien-dev/open-humanity/pull/47)
+carries exact-final-head receipts without relabeling those historical runs.
 
 ## Core Crates
 
