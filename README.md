@@ -142,6 +142,12 @@ The classifier self-test checks semantic kill, setup panic, signal,
 truncated/missing/extra results and survival separately. Process crash
 tests do not establish power-loss or storage-device qualification.
 
+The identity-vault process tests share a test-only executable-fixture mutex.
+Both vault-spawning tests hold it before fixture creation or process spawn
+through child completion and cleanup. This excludes a concurrent pre-exec
+child retaining the fixture's writable descriptor. It does not serialize
+the workspace, change production vault calls, retry errors or ignore tests.
+
 ### Authenticated settlement: canonical protocols adapter
 
 Open Humanity owns the signed job carrier, not a second ledger adapter.

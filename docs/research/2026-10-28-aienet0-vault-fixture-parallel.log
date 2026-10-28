@@ -1,0 +1,616 @@
+Post-repair focused/default workspace + audit, observed exit0.
+Machine-local path prefixes projected as $OH_TREE and $HOME; raw tool artifact3881 SHA256 b1f40f35eeaf72362c9043eb34f42c68b7d1fb057b208131c333b414a6eb7627
+identity.rs source SHA256 5b560c284a28117f83942c34f7d648e72fa07312961bb823d496043e797b265b
+Commands: cargo test -p oh-core --lib identity::tests:: && cargo test --workspace --verbose && cargo audit
+No --test-threads override, ignored-test change, production retry or error suppression.
+
+   Compiling libc v0.2.189
+   Compiling typenum v1.20.1
+   Compiling subtle v2.6.1
+   Compiling getrandom v0.4.3
+   Compiling syn v2.0.119
+   Compiling syn v3.0.6
+   Compiling generic-array v0.14.7
+   Compiling block-buffer v0.10.4
+   Compiling inout v0.1.4
+   Compiling getrandom v0.2.17
+   Compiling cpufeatures v0.2.17
+   Compiling rand_core v0.6.4
+   Compiling uuid v1.26.1
+   Compiling crypto-common v0.1.7
+   Compiling rand_chacha v0.3.1
+   Compiling digest v0.10.7
+   Compiling universal-hash v0.5.1
+   Compiling aead v0.5.2
+   Compiling rand v0.8.8
+   Compiling poly1305 v0.8.0
+   Compiling sha2 v0.10.9
+   Compiling serde_derive v1.0.229
+   Compiling clap_derive v4.6.7
+   Compiling zeroize_derive v1.5.0
+   Compiling thiserror-impl v1.0.69
+   Compiling zeroize v1.9.0
+   Compiling curve25519-dalek v4.1.3
+   Compiling cipher v0.4.4
+   Compiling clap v4.6.7
+   Compiling chacha20 v0.9.1
+   Compiling chacha20poly1305 v0.10.1
+   Compiling thiserror v1.0.69
+   Compiling ed25519-dalek v2.2.0
+   Compiling x25519-dalek v2.0.1
+   Compiling serde v1.0.229
+   Compiling chrono v0.4.45
+   Compiling bincode v1.3.3
+   Compiling crumb-spec v1.0.0 (https://github.com/aien-dev/crumb-spec?rev=24194d1b7917ef19244aae6bcaff510686b75fef#24194d1b)
+   Compiling spark-crumbs v0.1.0 (https://github.com/aien-dev/spark-crumbs?rev=9355a92bc9adfe95a6ec5f8ac926f38a0b6e7db2#9355a92b)
+   Compiling beacon-core v0.1.0 ($OH_TREE/crates/beacon-core)
+   Compiling oh-core v0.1.0 ($OH_TREE/crates/oh-core)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.30s
+     Running unittests src/lib.rs (target/debug/deps/oh_core-5284774d4ccb1524)
+
+running 4 tests
+test identity::tests::test_bad_seed_is_refused_without_echoing_it ... ok
+test identity::tests::test_seed_hex_gives_the_same_key_every_time ... ok
+test identity::tests::test_vault_stdout_becomes_the_key ... ok
+test identity::tests::test_vault_that_cannot_run_or_fails_is_an_error ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 73 filtered out; finished in 0.00s
+
+       Fresh unicode-ident v1.0.26
+       Fresh cfg-if v1.0.5
+       Fresh typenum v1.20.1
+       Fresh subtle v2.6.1
+       Fresh version_check v0.9.5
+       Fresh rand_core v0.10.1
+       Fresh shlex v2.0.1
+       Fresh find-msvc-tools v0.1.13
+       Fresh itoa v1.0.18
+       Fresh autocfg v1.5.1
+       Fresh memchr v2.8.3
+       Fresh proc-macro2 v1.0.107
+       Fresh cc v1.4.7
+       Fresh semver v1.0.28
+       Fresh cmov v0.5.4
+       Fresh utf8parse v0.2.2
+       Fresh anstyle v1.0.14
+       Fresh quote v1.0.47
+       Fresh libc v0.2.189
+       Fresh serde_core v1.0.229
+       Fresh zmij v1.0.23
+       Fresh zerocopy v0.8.57
+       Fresh rustc_version v0.4.1
+       Fresh ctutils v0.4.6
+       Fresh anstyle-parse v1.0.0
+       Fresh is_terminal_polyfill v1.70.2
+       Fresh const-oid v0.10.2
+       Fresh lazy_static v1.5.0
+       Fresh anstyle-query v1.1.5
+       Fresh colorchoice v1.0.5
+       Fresh syn v2.0.119
+       Fresh syn v3.0.6
+       Fresh getrandom v0.2.17
+       Fresh getrandom v0.4.3
+       Fresh generic-array v0.14.7
+       Fresh num-traits v0.2.19
+       Fresh serde_json v1.0.151
+       Fresh crossbeam-utils v0.8.23
+       Fresh cpufeatures v0.2.17
+       Fresh anstream v1.0.0
+       Fresh strsim v0.11.1
+       Fresh heck v0.5.0
+       Fresh clap_lex v1.1.1
+       Fresh ppv-lite86 v0.2.21
+       Fresh aho-corasick v1.1.5
+       Fresh constant_time_eq v0.4.2
+       Fresh either v1.18.0
+       Fresh zeroize_derive v1.5.0
+       Fresh rand_core v0.6.4
+       Fresh serde_derive v1.0.229
+       Fresh block-buffer v0.10.4
+       Fresh uuid v1.26.1
+       Fresh thiserror-impl v1.0.69
+       Fresh crossbeam-epoch v0.9.21
+       Fresh inout v0.1.4
+       Fresh clap_builder v4.6.7
+       Fresh clap_derive v4.6.7
+       Fresh signature v2.2.0
+       Fresh regex-syntax v0.8.11
+       Fresh same-file v1.0.6
+       Fresh iana-time-zone v0.1.65
+       Fresh arrayvec v0.7.8
+       Fresh opaque-debug v0.3.1
+       Fresh colored v2.2.0
+       Fresh bitflags v2.13.2
+       Fresh zeroize v1.9.0
+       Fresh crypto-common v0.1.7
+       Fresh serde v1.0.229
+       Fresh thiserror v1.0.69
+       Fresh crossbeam-deque v0.8.8
+       Fresh rand_chacha v0.3.1
+       Fresh regex-automata v0.4.18
+       Fresh blake3 v1.8.7
+       Fresh walkdir v2.5.0
+       Fresh ed25519 v2.2.3
+       Fresh clap v4.6.7
+       Fresh base64ct v1.8.3
+       Fresh cpubits v0.1.1
+       Fresh ff v0.14.0
+       Fresh base16ct v1.0.0
+       Fresh cpufeatures v0.3.1
+       Fresh hex v0.4.3
+       Fresh synstructure v0.14.0
+       Fresh smallvec v1.16.1
+       Fresh once_cell v1.21.4
+       Fresh digest v0.10.7
+       Fresh hybrid-array v0.4.15
+       Fresh universal-hash v0.5.1
+       Fresh rayon-core v1.13.0
+       Fresh cipher v0.4.4
+       Fresh bincode v1.3.3
+       Fresh chrono v0.4.45
+       Fresh aead v0.5.2
+       Fresh rand v0.8.8
+       Fresh regex v1.13.1
+       Fresh pem-rfc7468 v1.0.0
+       Fresh group v0.14.0
+       Fresh aien-protocol-types v0.1.0 (https://github.com/aien-dev/aien-protocols-mv?rev=7bfb4ee2fda4fee023a8f9b62639efedc1206391#7bfb4ee2)
+       Fresh zerofrom-derive v0.1.8
+       Fresh yoke-derive v0.8.4
+       Fresh stable_deref_trait v1.2.1
+       Fresh zerovec-derive v0.11.6
+       Fresh displaydoc v0.2.7
+       Fresh pin-project-lite v0.2.17
+       Fresh sha2 v0.10.9
+       Fresh crypto-common v0.2.2
+       Fresh curve25519-dalek v4.1.3
+       Fresh poly1305 v0.8.0
+       Fresh rayon v1.12.0
+       Fresh chacha20 v0.9.1
+       Fresh block-buffer v0.12.1
+       Fresh crumb-spec v1.0.0 (https://github.com/aien-dev/crumb-spec?rev=24194d1b7917ef19244aae6bcaff510686b75fef#24194d1b)
+       Fresh der v0.8.3
+       Fresh crypto-bigint v0.7.10
+       Fresh zerofrom v0.1.8
+       Fresh bytes v1.12.1
+       Fresh scopeguard v1.2.0
+       Fresh errno v0.3.14
+       Fresh futures-core v0.3.34
+       Fresh tokio-macros v2.7.2
+       Fresh mio v1.2.3
+       Fresh socket2 v0.6.5
+       Fresh writeable v0.6.4
+       Fresh ed25519-dalek v2.2.0
+       Fresh spark-crumbs v0.1.0 (https://github.com/aien-dev/spark-crumbs?rev=9355a92bc9adfe95a6ec5f8ac926f38a0b6e7db2#9355a92b)
+       Fresh chacha20poly1305 v0.10.1
+       Fresh x25519-dalek v2.0.1
+       Fresh digest v0.11.3
+       Fresh spki v0.8.1
+       Fresh sec1 v0.8.1
+       Fresh primefield v0.14.0
+       Fresh yoke v0.8.3
+       Fresh lock_api v0.4.14
+       Fresh parking_lot_core v0.9.12
+       Fresh signal-hook-registry v1.4.8
+       Fresh litemap v0.8.3
+       Fresh utf8_iter v1.0.4
+       Fresh http v1.5.0
+       Fresh tracing-core v0.1.36
+       Fresh percent-encoding v2.3.2
+       Fresh pkcs8 v0.11.0
+       Fresh hmac v0.13.0
+       Fresh signature v3.0.0
+       Fresh wnaf v0.14.1
+       Fresh sha2 v0.11.1
+       Fresh zerovec v0.11.8
+       Fresh parking_lot v0.12.5
+       Fresh zerotrie v0.2.5
+       Fresh http-body v1.1.0
+       Fresh rustls-pki-types v1.15.1
+       Fresh untrusted v0.9.0
+       Fresh slab v0.4.12
+       Fresh futures-task v0.3.34
+       Fresh tracing-attributes v0.1.31
+       Fresh elliptic-curve v0.14.3
+       Fresh rfc6979 v0.6.0
+       Dirty oh-core v0.1.0 ($OH_TREE/crates/oh-core): the file `crates/oh-core/src/identity.rs` has changed (1793190723.890080767s, 15m 51s after last build at 1793189772.520325523s)
+   Compiling oh-core v0.1.0 ($OH_TREE/crates/oh-core)
+       Fresh tinystr v0.8.4
+       Fresh tokio v1.53.1
+       Fresh potential_utf v0.1.6
+       Fresh icu_normalizer_data v2.3.0
+       Fresh icu_properties_data v2.3.0
+       Fresh ring v0.17.14
+       Fresh futures-util v0.3.34
+       Fresh try-lock v0.2.5
+       Fresh tower-service v0.3.3
+       Fresh tracing v0.1.44
+       Fresh form_urlencoded v1.2.2
+       Fresh vcpkg v0.2.15
+       Fresh pkg-config v0.3.34
+       Fresh log v0.4.34
+       Fresh primeorder v0.14.0
+       Fresh ecdsa v0.17.0
+       Fresh icu_locale_core v2.3.0
+       Fresh icu_collections v2.3.0
+       Fresh want v0.3.2
+       Fresh rustls-webpki v0.103.16
+       Fresh httparse v1.10.1
+       Fresh atomic-waker v1.1.2
+       Fresh ahash v0.8.12
+       Fresh futures-channel v0.3.34
+       Fresh sync_wrapper v1.0.2
+       Fresh ipnet v2.12.2
+       Fresh tower-layer v0.3.3
+       Fresh base64 v0.23.1
+       Fresh tracing-log v0.2.0
+       Fresh webpki-roots v1.0.10
+       Fresh p256 v0.14.0
+       Fresh icu_provider v2.3.1
+       Fresh rustls v0.23.46
+       Fresh hyper v1.12.0
+       Fresh hashbrown v0.14.5
+       Fresh tower v0.5.3
+       Fresh sharded-slab v0.1.7
+       Fresh thread_local v1.1.10
+       Fresh ryu v1.0.23
+       Fresh nu-ansi-term v0.50.3
+       Fresh linux-raw-sys v0.12.1
+       Fresh http-body-util v0.1.5
+       Fresh fallible-streaming-iterator v0.1.9
+       Fresh fallible-iterator v0.3.0
+       Fresh base64 v0.22.1
+       Fresh fastrand v2.5.0
+       Fresh aien-provenance v0.1.0 (https://github.com/aien-dev/aien-protocols-mv?rev=7bfb4ee2fda4fee023a8f9b62639efedc1206391#7bfb4ee2)
+       Fresh icu_normalizer v2.3.0
+       Fresh icu_properties v2.3.0
+       Fresh hyper-util v0.1.21
+       Fresh tokio-rustls v0.26.6
+       Fresh rustix v1.1.5
+       Fresh serde_urlencoded v0.7.1
+       Fresh hashlink v0.9.1
+       Fresh tracing-subscriber v0.3.23
+       Fresh libsqlite3-sys v0.28.0
+       Fresh beacon-core v0.1.0 ($OH_TREE/crates/beacon-core)
+     Running `$HOME/.rustup/toolchains/stable-aarch64-unknown-linux-gnu/bin/rustc --crate-name oh_core --edition=2021 crates/oh-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=8263abbf3ed779ff -C extra-filename=-6cd5f28195fa5b93 --out-dir $OH_TREE/target/debug/deps -C incremental=$OH_TREE/target/debug/incremental -L dependency=$OH_TREE/target/debug/deps --extern beacon_core=$OH_TREE/target/debug/deps/libbeacon_core-e08fa705112eb2b1.rlib --extern bincode=$OH_TREE/target/debug/deps/libbincode-33050eaf4c6f2c26.rlib --extern blake3=$OH_TREE/target/debug/deps/libblake3-c228449a5308177c.rlib --extern serde=$OH_TREE/target/debug/deps/libserde-d09741a8257e640f.rlib --extern serde_json=$OH_TREE/target/debug/deps/libserde_json-32db16b1477776b3.rlib --extern thiserror=$OH_TREE/target/debug/deps/libthiserror-594477c4609cff12.rlib --extern zeroize=$OH_TREE/target/debug/deps/libzeroize-65dd099f57382002.rlib -L native=$OH_TREE/target/debug/build/blake3-ac774d7d4ec563dc/out`
+       Fresh aien-microjob v0.2.0 (https://github.com/aien-dev/aien-protocols-mv?rev=7bfb4ee2fda4fee023a8f9b62639efedc1206391#7bfb4ee2)
+       Fresh idna_adapter v1.2.2
+       Fresh hyper-rustls v0.27.10
+       Fresh rusqlite v0.31.0
+       Fresh tempfile v3.27.0
+       Fresh beacon v0.1.0 ($OH_TREE/crates/beacon)
+     Running `$HOME/.rustup/toolchains/stable-aarch64-unknown-linux-gnu/bin/rustc --crate-name oh_core --edition=2021 crates/oh-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=6043a43e3ae7439f -C extra-filename=-fad6909e2681429a --out-dir $OH_TREE/target/debug/deps -C incremental=$OH_TREE/target/debug/incremental -L dependency=$OH_TREE/target/debug/deps --extern beacon_core=$OH_TREE/target/debug/deps/libbeacon_core-e08fa705112eb2b1.rmeta --extern bincode=$OH_TREE/target/debug/deps/libbincode-33050eaf4c6f2c26.rmeta --extern blake3=$OH_TREE/target/debug/deps/libblake3-c228449a5308177c.rmeta --extern serde=$OH_TREE/target/debug/deps/libserde-d09741a8257e640f.rmeta --extern serde_json=$OH_TREE/target/debug/deps/libserde_json-32db16b1477776b3.rmeta --extern thiserror=$OH_TREE/target/debug/deps/libthiserror-594477c4609cff12.rmeta --extern zeroize=$OH_TREE/target/debug/deps/libzeroize-65dd099f57382002.rmeta -L native=$OH_TREE/target/debug/build/blake3-ac774d7d4ec563dc/out`
+       Fresh idna v1.1.0
+       Fresh url v2.5.8
+       Fresh tower-http v0.6.11
+       Fresh reqwest v0.12.28
+       Fresh beacon-client v0.1.0 ($OH_TREE/crates/beacon-client)
+       Dirty oh-volunteer v0.1.0 ($OH_TREE/crates/oh-volunteer): the dependency `oh-core` was rebuilt
+   Compiling oh-volunteer v0.1.0 ($OH_TREE/crates/oh-volunteer)
+       Dirty oh-coordinator v0.1.0 ($OH_TREE/crates/oh-coordinator): the dependency `oh-core` was rebuilt
+   Compiling oh-coordinator v0.1.0 ($OH_TREE/crates/oh-coordinator)
+     Running `$HOME/.rustup/toolchains/stable-aarch64-unknown-linux-gnu/bin/rustc --crate-name oh_volunteer --edition=2021 crates/oh-volunteer/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=244fa3a2ff03b185 -C extra-filename=-5844045fcd6e94ef --out-dir $OH_TREE/target/debug/deps -C incremental=$OH_TREE/target/debug/incremental -L dependency=$OH_TREE/target/debug/deps --extern aien_microjob=$OH_TREE/target/debug/deps/libaien_microjob-208de8af6fd2ea32.rmeta --extern beacon_core=$OH_TREE/target/debug/deps/libbeacon_core-e08fa705112eb2b1.rmeta --extern oh_core=$OH_TREE/target/debug/deps/liboh_core-fad6909e2681429a.rmeta --extern p256=$OH_TREE/target/debug/deps/libp256-b2a7216e8cb5819f.rmeta --extern sha2=$OH_TREE/target/debug/deps/libsha2-74d6e8fa58976e30.rmeta --extern thiserror=$OH_TREE/target/debug/deps/libthiserror-594477c4609cff12.rmeta -L native=$OH_TREE/target/debug/build/blake3-ac774d7d4ec563dc/out`
+     Running `$HOME/.rustup/toolchains/stable-aarch64-unknown-linux-gnu/bin/rustc --crate-name oh_coordinator --edition=2021 crates/oh-coordinator/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=624d0b3f2ca25a51 -C extra-filename=-e47df11e94fa2875 --out-dir $OH_TREE/target/debug/deps -C incremental=$OH_TREE/target/debug/incremental -L dependency=$OH_TREE/target/debug/deps --extern aien_microjob=$OH_TREE/target/debug/deps/libaien_microjob-208de8af6fd2ea32.rmeta --extern beacon_core=$OH_TREE/target/debug/deps/libbeacon_core-e08fa705112eb2b1.rmeta --extern blake3=$OH_TREE/target/debug/deps/libblake3-c228449a5308177c.rmeta --extern oh_core=$OH_TREE/target/debug/deps/liboh_core-fad6909e2681429a.rmeta --extern p256=$OH_TREE/target/debug/deps/libp256-b2a7216e8cb5819f.rmeta --extern rand=$OH_TREE/target/debug/deps/librand-ad99d1ee96877c29.rmeta --extern sha2=$OH_TREE/target/debug/deps/libsha2-74d6e8fa58976e30.rmeta -L native=$OH_TREE/target/debug/build/blake3-ac774d7d4ec563dc/out`
+     Running `$HOME/.rustup/toolchains/stable-aarch64-unknown-linux-gnu/bin/rustc --crate-name oh_volunteer --edition=2021 crates/oh-volunteer/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=b243e0de656dfd43 -C extra-filename=-b881b3086e89ee8c --out-dir $OH_TREE/target/debug/deps -C incremental=$OH_TREE/target/debug/incremental -L dependency=$OH_TREE/target/debug/deps --extern aien_microjob=$OH_TREE/target/debug/deps/libaien_microjob-208de8af6fd2ea32.rlib --extern beacon_core=$OH_TREE/target/debug/deps/libbeacon_core-e08fa705112eb2b1.rlib --extern oh_core=$OH_TREE/target/debug/deps/liboh_core-fad6909e2681429a.rlib --extern p256=$OH_TREE/target/debug/deps/libp256-b2a7216e8cb5819f.rlib --extern sha2=$OH_TREE/target/debug/deps/libsha2-74d6e8fa58976e30.rlib --extern thiserror=$OH_TREE/target/debug/deps/libthiserror-594477c4609cff12.rlib -L native=$OH_TREE/target/debug/build/blake3-ac774d7d4ec563dc/out`
+     Running `$HOME/.rustup/toolchains/stable-aarch64-unknown-linux-gnu/bin/rustc --crate-name oh_volunteer --edition=2021 crates/oh-volunteer/src/main.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=fe835bee1348bf88 -C extra-filename=-44feac70c5c55e7a --out-dir $OH_TREE/target/debug/deps -C incremental=$OH_TREE/target/debug/incremental -L dependency=$OH_TREE/target/debug/deps --extern aien_microjob=$OH_TREE/target/debug/deps/libaien_microjob-208de8af6fd2ea32.rlib --extern beacon_core=$OH_TREE/target/debug/deps/libbeacon_core-e08fa705112eb2b1.rlib --extern oh_core=$OH_TREE/target/debug/deps/liboh_core-fad6909e2681429a.rlib --extern oh_volunteer=$OH_TREE/target/debug/deps/liboh_volunteer-5844045fcd6e94ef.rlib --extern p256=$OH_TREE/target/debug/deps/libp256-b2a7216e8cb5819f.rlib --extern sha2=$OH_TREE/target/debug/deps/libsha2-74d6e8fa58976e30.rlib --extern thiserror=$OH_TREE/target/debug/deps/libthiserror-594477c4609cff12.rlib -L native=$OH_TREE/target/debug/build/blake3-ac774d7d4ec563dc/out`
+     Running `$HOME/.rustup/toolchains/stable-aarch64-unknown-linux-gnu/bin/rustc --crate-name aienet0_serve --edition=2021 crates/oh-volunteer/src/bin/aienet0-serve.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type bin --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=f4a0d4c7f9532b7c -C extra-filename=-079aac5c49d26377 --out-dir $OH_TREE/target/debug/deps -C incremental=$OH_TREE/target/debug/incremental -L dependency=$OH_TREE/target/debug/deps --extern aien_microjob=$OH_TREE/target/debug/deps/libaien_microjob-208de8af6fd2ea32.rlib --extern beacon_core=$OH_TREE/target/debug/deps/libbeacon_core-e08fa705112eb2b1.rlib --extern oh_core=$OH_TREE/target/debug/deps/liboh_core-fad6909e2681429a.rlib --extern oh_volunteer=$OH_TREE/target/debug/deps/liboh_volunteer-5844045fcd6e94ef.rlib --extern p256=$OH_TREE/target/debug/deps/libp256-b2a7216e8cb5819f.rlib --extern sha2=$OH_TREE/target/debug/deps/libsha2-74d6e8fa58976e30.rlib --extern thiserror=$OH_TREE/target/debug/deps/libthiserror-594477c4609cff12.rlib -L native=$OH_TREE/target/debug/build/blake3-ac774d7d4ec563dc/out`
+     Running `$HOME/.rustup/toolchains/stable-aarch64-unknown-linux-gnu/bin/rustc --crate-name teaching --edition=2021 crates/oh-volunteer/tests/teaching.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2a9306d6cb77e61b -C extra-filename=-7a8230fbb0f71f0d --out-dir $OH_TREE/target/debug/deps -C incremental=$OH_TREE/target/debug/incremental -L dependency=$OH_TREE/target/debug/deps --extern aien_microjob=$OH_TREE/target/debug/deps/libaien_microjob-208de8af6fd2ea32.rlib --extern beacon_core=$OH_TREE/target/debug/deps/libbeacon_core-e08fa705112eb2b1.rlib --extern oh_core=$OH_TREE/target/debug/deps/liboh_core-fad6909e2681429a.rlib --extern oh_volunteer=$OH_TREE/target/debug/deps/liboh_volunteer-5844045fcd6e94ef.rlib --extern p256=$OH_TREE/target/debug/deps/libp256-b2a7216e8cb5819f.rlib --extern sha2=$OH_TREE/target/debug/deps/libsha2-74d6e8fa58976e30.rlib --extern thiserror=$OH_TREE/target/debug/deps/libthiserror-594477c4609cff12.rlib -L native=$OH_TREE/target/debug/build/blake3-ac774d7d4ec563dc/out`
+     Running `$HOME/.rustup/toolchains/stable-aarch64-unknown-linux-gnu/bin/rustc --crate-name oh_coordinator --edition=2021 crates/oh-coordinator/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=229c556a8779a05e -C extra-filename=-03facf1e0f2b0c2d --out-dir $OH_TREE/target/debug/deps -C incremental=$OH_TREE/target/debug/incremental -L dependency=$OH_TREE/target/debug/deps --extern aien_microjob=$OH_TREE/target/debug/deps/libaien_microjob-208de8af6fd2ea32.rlib --extern beacon_core=$OH_TREE/target/debug/deps/libbeacon_core-e08fa705112eb2b1.rlib --extern blake3=$OH_TREE/target/debug/deps/libblake3-c228449a5308177c.rlib --extern oh_core=$OH_TREE/target/debug/deps/liboh_core-fad6909e2681429a.rlib --extern oh_volunteer=$OH_TREE/target/debug/deps/liboh_volunteer-5844045fcd6e94ef.rlib --extern p256=$OH_TREE/target/debug/deps/libp256-b2a7216e8cb5819f.rlib --extern rand=$OH_TREE/target/debug/deps/librand-ad99d1ee96877c29.rlib --extern sha2=$OH_TREE/target/debug/deps/libsha2-74d6e8fa58976e30.rlib -L native=$OH_TREE/target/debug/build/blake3-ac774d7d4ec563dc/out`
+     Running `$HOME/.rustup/toolchains/stable-aarch64-unknown-linux-gnu/bin/rustc --crate-name aienet0_serve --edition=2021 crates/oh-volunteer/src/bin/aienet0-serve.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=c4ab1a844f33505c -C extra-filename=-2ccda5606d18117d --out-dir $OH_TREE/target/debug/deps -C incremental=$OH_TREE/target/debug/incremental -L dependency=$OH_TREE/target/debug/deps --extern aien_microjob=$OH_TREE/target/debug/deps/libaien_microjob-208de8af6fd2ea32.rlib --extern beacon_core=$OH_TREE/target/debug/deps/libbeacon_core-e08fa705112eb2b1.rlib --extern oh_core=$OH_TREE/target/debug/deps/liboh_core-fad6909e2681429a.rlib --extern oh_volunteer=$OH_TREE/target/debug/deps/liboh_volunteer-5844045fcd6e94ef.rlib --extern p256=$OH_TREE/target/debug/deps/libp256-b2a7216e8cb5819f.rlib --extern sha2=$OH_TREE/target/debug/deps/libsha2-74d6e8fa58976e30.rlib --extern thiserror=$OH_TREE/target/debug/deps/libthiserror-594477c4609cff12.rlib -L native=$OH_TREE/target/debug/build/blake3-ac774d7d4ec563dc/out`
+     Running `$HOME/.rustup/toolchains/stable-aarch64-unknown-linux-gnu/bin/rustc --crate-name oh_volunteer --edition=2021 crates/oh-volunteer/src/main.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type bin --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=0f0b7bfb03353a44 -C extra-filename=-ee99fa69c6f8c1a8 --out-dir $OH_TREE/target/debug/deps -C incremental=$OH_TREE/target/debug/incremental -L dependency=$OH_TREE/target/debug/deps --extern aien_microjob=$OH_TREE/target/debug/deps/libaien_microjob-208de8af6fd2ea32.rlib --extern beacon_core=$OH_TREE/target/debug/deps/libbeacon_core-e08fa705112eb2b1.rlib --extern oh_core=$OH_TREE/target/debug/deps/liboh_core-fad6909e2681429a.rlib --extern oh_volunteer=$OH_TREE/target/debug/deps/liboh_volunteer-5844045fcd6e94ef.rlib --extern p256=$OH_TREE/target/debug/deps/libp256-b2a7216e8cb5819f.rlib --extern sha2=$OH_TREE/target/debug/deps/libsha2-74d6e8fa58976e30.rlib --extern thiserror=$OH_TREE/target/debug/deps/libthiserror-594477c4609cff12.rlib -L native=$OH_TREE/target/debug/build/blake3-ac774d7d4ec563dc/out`
+     Running `$HOME/.rustup/toolchains/stable-aarch64-unknown-linux-gnu/bin/rustc --crate-name data_stays_home --edition=2021 crates/oh-volunteer/tests/data_stays_home.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=a10ec3302fa7c54f -C extra-filename=-c7de8b6637e1e0d1 --out-dir $OH_TREE/target/debug/deps -C incremental=$OH_TREE/target/debug/incremental -L dependency=$OH_TREE/target/debug/deps --extern aien_microjob=$OH_TREE/target/debug/deps/libaien_microjob-208de8af6fd2ea32.rlib --extern beacon_core=$OH_TREE/target/debug/deps/libbeacon_core-e08fa705112eb2b1.rlib --extern oh_core=$OH_TREE/target/debug/deps/liboh_core-fad6909e2681429a.rlib --extern oh_volunteer=$OH_TREE/target/debug/deps/liboh_volunteer-5844045fcd6e94ef.rlib --extern p256=$OH_TREE/target/debug/deps/libp256-b2a7216e8cb5819f.rlib --extern sha2=$OH_TREE/target/debug/deps/libsha2-74d6e8fa58976e30.rlib --extern thiserror=$OH_TREE/target/debug/deps/libthiserror-594477c4609cff12.rlib -L native=$OH_TREE/target/debug/build/blake3-ac774d7d4ec563dc/out`
+     Running `$HOME/.rustup/toolchains/stable-aarch64-unknown-linux-gnu/bin/rustc --crate-name teaching_steps --edition=2021 crates/oh-coordinator/tests/teaching_steps.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=4c047efb46b1f925 -C extra-filename=-108176b68dcba48c --out-dir $OH_TREE/target/debug/deps -C incremental=$OH_TREE/target/debug/incremental -L dependency=$OH_TREE/target/debug/deps --extern aien_microjob=$OH_TREE/target/debug/deps/libaien_microjob-208de8af6fd2ea32.rlib --extern beacon_core=$OH_TREE/target/debug/deps/libbeacon_core-e08fa705112eb2b1.rlib --extern blake3=$OH_TREE/target/debug/deps/libblake3-c228449a5308177c.rlib --extern oh_coordinator=$OH_TREE/target/debug/deps/liboh_coordinator-e47df11e94fa2875.rlib --extern oh_core=$OH_TREE/target/debug/deps/liboh_core-fad6909e2681429a.rlib --extern oh_volunteer=$OH_TREE/target/debug/deps/liboh_volunteer-5844045fcd6e94ef.rlib --extern p256=$OH_TREE/target/debug/deps/libp256-b2a7216e8cb5819f.rlib --extern rand=$OH_TREE/target/debug/deps/librand-ad99d1ee96877c29.rlib --extern sha2=$OH_TREE/target/debug/deps/libsha2-74d6e8fa58976e30.rlib -L native=$OH_TREE/target/debug/build/blake3-ac774d7d4ec563dc/out`
+     Running `$HOME/.rustup/toolchains/stable-aarch64-unknown-linux-gnu/bin/rustc --crate-name teaching --edition=2021 crates/oh-coordinator/tests/teaching.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=8ccbd552c9845137 -C extra-filename=-3ccabde31da99b9d --out-dir $OH_TREE/target/debug/deps -C incremental=$OH_TREE/target/debug/incremental -L dependency=$OH_TREE/target/debug/deps --extern aien_microjob=$OH_TREE/target/debug/deps/libaien_microjob-208de8af6fd2ea32.rlib --extern beacon_core=$OH_TREE/target/debug/deps/libbeacon_core-e08fa705112eb2b1.rlib --extern blake3=$OH_TREE/target/debug/deps/libblake3-c228449a5308177c.rlib --extern oh_coordinator=$OH_TREE/target/debug/deps/liboh_coordinator-e47df11e94fa2875.rlib --extern oh_core=$OH_TREE/target/debug/deps/liboh_core-fad6909e2681429a.rlib --extern oh_volunteer=$OH_TREE/target/debug/deps/liboh_volunteer-5844045fcd6e94ef.rlib --extern p256=$OH_TREE/target/debug/deps/libp256-b2a7216e8cb5819f.rlib --extern rand=$OH_TREE/target/debug/deps/librand-ad99d1ee96877c29.rlib --extern sha2=$OH_TREE/target/debug/deps/libsha2-74d6e8fa58976e30.rlib -L native=$OH_TREE/target/debug/build/blake3-ac774d7d4ec563dc/out`
+     Running `$HOME/.rustup/toolchains/stable-aarch64-unknown-linux-gnu/bin/rustc --crate-name oh_coordinator --edition=2021 crates/oh-coordinator/src/main.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=6b4166edd5cb9a47 -C extra-filename=-7d6faa7b79a02ef1 --out-dir $OH_TREE/target/debug/deps -C incremental=$OH_TREE/target/debug/incremental -L dependency=$OH_TREE/target/debug/deps --extern aien_microjob=$OH_TREE/target/debug/deps/libaien_microjob-208de8af6fd2ea32.rlib --extern beacon_core=$OH_TREE/target/debug/deps/libbeacon_core-e08fa705112eb2b1.rlib --extern blake3=$OH_TREE/target/debug/deps/libblake3-c228449a5308177c.rlib --extern oh_coordinator=$OH_TREE/target/debug/deps/liboh_coordinator-e47df11e94fa2875.rlib --extern oh_core=$OH_TREE/target/debug/deps/liboh_core-fad6909e2681429a.rlib --extern oh_volunteer=$OH_TREE/target/debug/deps/liboh_volunteer-5844045fcd6e94ef.rlib --extern p256=$OH_TREE/target/debug/deps/libp256-b2a7216e8cb5819f.rlib --extern rand=$OH_TREE/target/debug/deps/librand-ad99d1ee96877c29.rlib --extern sha2=$OH_TREE/target/debug/deps/libsha2-74d6e8fa58976e30.rlib -L native=$OH_TREE/target/debug/build/blake3-ac774d7d4ec563dc/out`
+     Running `$HOME/.rustup/toolchains/stable-aarch64-unknown-linux-gnu/bin/rustc --crate-name aienet0_run --edition=2021 crates/oh-coordinator/src/bin/aienet0-run.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type bin --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=3c4c955a1721fbef -C extra-filename=-c16e2467b3d4105e --out-dir $OH_TREE/target/debug/deps -C incremental=$OH_TREE/target/debug/incremental -L dependency=$OH_TREE/target/debug/deps --extern aien_microjob=$OH_TREE/target/debug/deps/libaien_microjob-208de8af6fd2ea32.rlib --extern beacon_core=$OH_TREE/target/debug/deps/libbeacon_core-e08fa705112eb2b1.rlib --extern blake3=$OH_TREE/target/debug/deps/libblake3-c228449a5308177c.rlib --extern oh_coordinator=$OH_TREE/target/debug/deps/liboh_coordinator-e47df11e94fa2875.rlib --extern oh_core=$OH_TREE/target/debug/deps/liboh_core-fad6909e2681429a.rlib --extern p256=$OH_TREE/target/debug/deps/libp256-b2a7216e8cb5819f.rlib --extern rand=$OH_TREE/target/debug/deps/librand-ad99d1ee96877c29.rlib --extern sha2=$OH_TREE/target/debug/deps/libsha2-74d6e8fa58976e30.rlib -L native=$OH_TREE/target/debug/build/blake3-ac774d7d4ec563dc/out`
+     Running `$HOME/.rustup/toolchains/stable-aarch64-unknown-linux-gnu/bin/rustc --crate-name aienet0_run --edition=2021 crates/oh-coordinator/src/bin/aienet0-run.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=02c35425d070e7f4 -C extra-filename=-423ddd79080964d2 --out-dir $OH_TREE/target/debug/deps -C incremental=$OH_TREE/target/debug/incremental -L dependency=$OH_TREE/target/debug/deps --extern aien_microjob=$OH_TREE/target/debug/deps/libaien_microjob-208de8af6fd2ea32.rlib --extern beacon_core=$OH_TREE/target/debug/deps/libbeacon_core-e08fa705112eb2b1.rlib --extern blake3=$OH_TREE/target/debug/deps/libblake3-c228449a5308177c.rlib --extern oh_coordinator=$OH_TREE/target/debug/deps/liboh_coordinator-e47df11e94fa2875.rlib --extern oh_core=$OH_TREE/target/debug/deps/liboh_core-fad6909e2681429a.rlib --extern oh_volunteer=$OH_TREE/target/debug/deps/liboh_volunteer-5844045fcd6e94ef.rlib --extern p256=$OH_TREE/target/debug/deps/libp256-b2a7216e8cb5819f.rlib --extern rand=$OH_TREE/target/debug/deps/librand-ad99d1ee96877c29.rlib --extern sha2=$OH_TREE/target/debug/deps/libsha2-74d6e8fa58976e30.rlib -L native=$OH_TREE/target/debug/build/blake3-ac774d7d4ec563dc/out`
+     Running `$HOME/.rustup/toolchains/stable-aarch64-unknown-linux-gnu/bin/rustc --crate-name encrypted_transport --edition=2021 crates/oh-coordinator/tests/encrypted_transport.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=085c572ffa379685 -C extra-filename=-1c936357bd849a72 --out-dir $OH_TREE/target/debug/deps -C incremental=$OH_TREE/target/debug/incremental -L dependency=$OH_TREE/target/debug/deps --extern aien_microjob=$OH_TREE/target/debug/deps/libaien_microjob-208de8af6fd2ea32.rlib --extern beacon_core=$OH_TREE/target/debug/deps/libbeacon_core-e08fa705112eb2b1.rlib --extern blake3=$OH_TREE/target/debug/deps/libblake3-c228449a5308177c.rlib --extern oh_coordinator=$OH_TREE/target/debug/deps/liboh_coordinator-e47df11e94fa2875.rlib --extern oh_core=$OH_TREE/target/debug/deps/liboh_core-fad6909e2681429a.rlib --extern oh_volunteer=$OH_TREE/target/debug/deps/liboh_volunteer-5844045fcd6e94ef.rlib --extern p256=$OH_TREE/target/debug/deps/libp256-b2a7216e8cb5819f.rlib --extern rand=$OH_TREE/target/debug/deps/librand-ad99d1ee96877c29.rlib --extern sha2=$OH_TREE/target/debug/deps/libsha2-74d6e8fa58976e30.rlib -L native=$OH_TREE/target/debug/build/blake3-ac774d7d4ec563dc/out`
+     Running `$HOME/.rustup/toolchains/stable-aarch64-unknown-linux-gnu/bin/rustc --crate-name oh_coordinator --edition=2021 crates/oh-coordinator/src/main.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type bin --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=54a9265758cd0ced -C extra-filename=-fcd527cf4e1073c1 --out-dir $OH_TREE/target/debug/deps -C incremental=$OH_TREE/target/debug/incremental -L dependency=$OH_TREE/target/debug/deps --extern aien_microjob=$OH_TREE/target/debug/deps/libaien_microjob-208de8af6fd2ea32.rlib --extern beacon_core=$OH_TREE/target/debug/deps/libbeacon_core-e08fa705112eb2b1.rlib --extern blake3=$OH_TREE/target/debug/deps/libblake3-c228449a5308177c.rlib --extern oh_coordinator=$OH_TREE/target/debug/deps/liboh_coordinator-e47df11e94fa2875.rlib --extern oh_core=$OH_TREE/target/debug/deps/liboh_core-fad6909e2681429a.rlib --extern p256=$OH_TREE/target/debug/deps/libp256-b2a7216e8cb5819f.rlib --extern rand=$OH_TREE/target/debug/deps/librand-ad99d1ee96877c29.rlib --extern sha2=$OH_TREE/target/debug/deps/libsha2-74d6e8fa58976e30.rlib -L native=$OH_TREE/target/debug/build/blake3-ac774d7d4ec563dc/out`
+     Running `$HOME/.rustup/toolchains/stable-aarch64-unknown-linux-gnu/bin/rustc --crate-name loopback --edition=2021 crates/oh-coordinator/tests/loopback.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=268bc068c1d550fd -C extra-filename=-60e7b1edf86100a4 --out-dir $OH_TREE/target/debug/deps -C incremental=$OH_TREE/target/debug/incremental -L dependency=$OH_TREE/target/debug/deps --extern aien_microjob=$OH_TREE/target/debug/deps/libaien_microjob-208de8af6fd2ea32.rlib --extern beacon_core=$OH_TREE/target/debug/deps/libbeacon_core-e08fa705112eb2b1.rlib --extern blake3=$OH_TREE/target/debug/deps/libblake3-c228449a5308177c.rlib --extern oh_coordinator=$OH_TREE/target/debug/deps/liboh_coordinator-e47df11e94fa2875.rlib --extern oh_core=$OH_TREE/target/debug/deps/liboh_core-fad6909e2681429a.rlib --extern oh_volunteer=$OH_TREE/target/debug/deps/liboh_volunteer-5844045fcd6e94ef.rlib --extern p256=$OH_TREE/target/debug/deps/libp256-b2a7216e8cb5819f.rlib --extern rand=$OH_TREE/target/debug/deps/librand-ad99d1ee96877c29.rlib --extern sha2=$OH_TREE/target/debug/deps/libsha2-74d6e8fa58976e30.rlib -L native=$OH_TREE/target/debug/build/blake3-ac774d7d4ec563dc/out`
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.05s
+     Running `$OH_TREE/target/debug/deps/beacon-94c4a1ad200f0ca5`
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running `$OH_TREE/target/debug/deps/beacon_client-a585b66c5b2af62b`
+
+running 7 tests
+test tests::test_network_udp_transport_loopback ... ok
+test tests::test_preflight_sandbox_execution ... ok
+test tests::test_sqlite_wal_storage_and_sweep ... ok
+test tests::test_storage_refuses_retired_topic_ids ... ok
+test tests::test_storage_transaction_rollback_simulated_io_error ... ok
+test tests::test_storage_automated_sweep_and_expiry ... ok
+test tests::test_storage_concurrent_signal_insertions_tokio_contention ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.54s
+
+     Running `$OH_TREE/target/debug/deps/open_humanity-a9f604ee479aba81`
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running `$OH_TREE/target/debug/deps/beacon_core-b22774f8e5817b2f`
+
+running 21 tests
+test crypto::tests::test_session_cipher_round_trip_and_tamper ... ok
+test tests::test_crypto_replay_attack_resistance ... ok
+test crypto::tests::test_ephemeral_agreement_refuses_low_order_point ... ok
+test tests::test_crypto_timestamp_drift_verification ... ok
+test tests::test_topic_wire_bytes_are_pinned ... ok
+test tests::test_crypto_encryption_cycle ... ok
+test crypto::tests::test_keypair_from_seed_is_stable_and_signs ... ok
+test tests::test_crypto_tampering_detection_mismatched_keys ... ok
+test crypto::tests::test_ephemeral_agreement_matches_on_both_sides ... ok
+test tests::test_nanobeacon_packet_size ... ok
+test tests::test_retired_topics_refused_on_wire ... ok
+test tests::test_firewall_sanitizes_paths ... ok
+test tests::test_firewall_percent_followed_by_multibyte_text ... ok
+test tests::test_firewall_comprehensive_api_key_detection_and_redaction ... ok
+test tests::test_firewall_blocks_api_keys ... ok
+test tests::test_firewall_filesystem_path_sanitization_all_platforms ... ok
+test tests::test_firewall_unicode_normalization_and_obfuscation ... ok
+test tests::test_cuckoo_lookup_speed ... ok
+test tests::test_crypto_tampering_detection_altered_auth_tags ... ok
+test tests::test_crypto_chacha20_poly1305_randomized_roundtrips ... ok
+test tests::test_crypto_tampering_detection_single_bit_flip ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+     Running `$OH_TREE/target/debug/deps/oh_coordinator-03facf1e0f2b0c2d`
+
+running 10 tests
+test tests::test_connection_deadline_refuses_trickle_after_expiry ... ok
+test tests::test_aggregate_is_the_mean_times_the_outer_lr ... ok
+test tests::test_split_keeps_heldout_as_the_tail ... ok
+test tests::test_shards_cover_training_without_overlap ... ok
+test tests::test_serve_refuses_missing_or_duplicate_approval_keys ... ok
+test tests::test_restart_with_the_same_key_keeps_identity_but_not_run_id ... ok
+test tests::test_outer_lr_scales_the_applied_update ... ok
+test tests::test_simulate_rejects_bad_settings ... ok
+test tests::test_simulate_shard_order_changes_only_which_seed_trains_which_shard ... ok
+test tests::test_simulate_repeats_exactly_and_one_exact_volunteer_matches_baseline ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.95s
+
+     Running `$OH_TREE/target/debug/deps/aienet0_run-423ddd79080964d2`
+
+running 10 tests
+test tests::write_new_refuses_dangling_destination ... ok
+test tests::write_new_does_not_touch_preexisting_temp ... ok
+test tests::write_new_has_one_concurrent_winner ... ok
+test tests::recompute_deadline_covers_output_and_exit ... ok
+test tests::recompute_refuses_excess_output_and_child_failure ... ok
+test tests::recompute_refuses_stdin_io_error ... ok
+test tests::recompute_deadline_covers_blocked_stdin ... ok
+test tests::recompute_accepts_pinned_digest_and_refuses_wrong_pin ... ok
+test tests::recompute_refuses_stdout_io_error ... ok
+test tests::recompute_timeout_reaps_only_its_child ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.56s
+
+     Running `$OH_TREE/target/debug/deps/oh_coordinator-7d6faa7b79a02ef1`
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running `$OH_TREE/target/debug/deps/encrypted_transport-1c936357bd849a72`
+
+running 1 test
+test test_eavesdropper_sees_no_shard_or_teaching_bytes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.67s
+
+     Running `$OH_TREE/target/debug/deps/loopback-60e7b1edf86100a4`
+
+running 5 tests
+test test_replayed_update_is_rejected ... ok
+test test_round_is_discarded_when_the_average_does_not_help ... ok
+test unapproved_identity_cannot_receive_a_training_shard ... ok
+test test_no_heldout_bytes_in_any_frame_sent ... ok
+test test_two_volunteers_two_rounds_over_loopback ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.17s
+
+     Running `$OH_TREE/target/debug/deps/teaching-3ccabde31da99b9d`
+
+running 3 tests
+test test_replayed_or_misplaced_teaching_is_refused ... ok
+test test_teaching_is_kept_only_if_it_still_helps_after_the_aggregate ... ok
+test test_teacher_and_trainer_share_a_round_over_loopback ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.72s
+
+     Running `$OH_TREE/target/debug/deps/teaching_steps-108176b68dcba48c`
+
+running 3 tests
+test print_teaching_steps_measurement ... ignored
+test test_every_batch_of_similar_english_scores_positive_with_scaled_steps ... ok
+test test_fixed_steps_overfit_short_passages ... ok
+
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 29.13s
+
+     Running `$OH_TREE/target/debug/deps/oh_core-6cd5f28195fa5b93`
+
+running 77 tests
+test carrier::tests::out_of_bound_frames_are_not_sent ... ok
+test carrier::tests::unknown_tag_and_oversize_length_are_refused_before_the_body ... ok
+test identity::tests::test_bad_seed_is_refused_without_echoing_it ... ok
+test carrier::tests::frames_round_trip ... ok
+test learner::tests::test_heldout_bits_matches_independent_log2_sum ... ok
+test learner::tests::test_short_input_has_zero_bits ... ok
+test scoring::tests::test_nan_score_is_rejected ... ok
+test teacher::tests::test_completions_shape_is_accepted ... ok
+test scoring::tests::test_teaching_steps_are_one_pass_over_the_passage ... ok
+test identity::tests::test_seed_hex_gives_the_same_key_every_time ... ok
+test scoring::tests::test_torn_last_line_is_refused ... ok
+test learner::tests::test_set_params_round_trip ... ok
+test identity::tests::test_vault_that_cannot_run_or_fails_is_an_error ... ok
+test teacher::tests::test_discover_model_takes_the_first_id ... ok
+test teacher::tests::test_malformed_replies_are_errors ... ok
+test teacher::tests::test_real_local_qwen ... ignored, needs a chat server on 127.0.0.1:18091
+test teacher::tests::test_oversize_content_length_is_refused_before_reading ... ok
+test teacher::tests::test_read_to_close_reply ... ok
+test teacher::tests::test_generate_with_chunked_reply ... ok
+test teacher::tests::test_non_loopback_teacher_is_refused_without_connecting ... ok
+test teacher::tests::test_error_reply_carries_the_server_message ... ok
+test transport::tests::test_padded_size_buckets ... ok
+test teacher::tests::test_generate_with_content_length_reply ... ok
+test identity::tests::test_vault_stdout_becomes_the_key ... ok
+test transport::tests::test_forged_coordinator_hello_is_refused ... ok
+test transport::tests::test_record_below_the_smallest_bucket_is_rejected ... ok
+test transport::tests::test_record_from_the_other_direction_is_rejected ... ok
+test scoring::tests::test_score_restores_the_model ... ok
+test scoring::tests::test_zero_delta_scores_zero_and_is_rejected ... ok
+test scoring::tests::test_replayed_delta_digest_is_rejected ... ok
+test scoring::tests::test_rejections_are_recorded_but_never_credited ... ok
+test transport::tests::test_trust_first_use_accepts_and_reports_the_key ... ok
+test transport::tests::test_unpinned_volunteer_is_refused_before_the_coordinator_speaks ... ok
+test transport::tests::test_wrong_version_is_refused ... ok
+test transport::tests::test_wrong_pinned_key_is_refused ... ok
+test update::tests::test_compression_ratio_at_five_percent ... ok
+test update::tests::test_keeps_the_largest_entries ... ok
+test update::tests::test_non_finite_entries_are_dropped ... ok
+test update::tests::test_pseudo_gradient_is_after_minus_before ... ok
+test update::tests::test_validate_rejects_malformed_deltas ... ok
+test update::tests::test_zero_delta_compresses_to_nothing ... ok
+test wire::tests::test_base_model_digest_matches_its_params ... ok
+test wire::tests::test_digest_ignores_signature ... ok
+test scoring::tests::test_ledger_totals_sum_and_survive_reopen ... ok
+test wire::tests::test_flipped_shard_byte_fails_verify ... ok
+test wire::tests::test_garbage_payload_is_a_decode_error ... ok
+test update::tests::test_kept_values_within_half_a_step ... ok
+test wire::tests::test_oversize_length_rejected_without_allocating ... ok
+test wire::tests::test_frame_round_trip ... ok
+test wire::tests::test_missing_or_short_signature_fails_verify ... ok
+test wire::tests::test_submissions_dispatch_by_frame_tag ... ok
+test wire::tests::test_receipt_flipped_turings_fails_verify ... ok
+test wire::tests::test_tampered_teaching_batch_fails_verify ... ok
+test wire::tests::test_replayed_teaching_text_is_caught_by_the_ledger ... ok
+test wire::tests::test_teaching_batch_sign_then_verify ... ok
+test wire::tests::test_truncated_frame_is_an_error ... ok
+test wire::tests::test_teaching_receipt_names_the_batch ... ok
+test wire::tests::test_tampered_update_fails_verify ... ok
+test wire::tests::test_work_unit_sign_then_verify ... ok
+test wire::tests::test_update_binds_to_its_work_unit ... ok
+test transport::tests::test_pinned_volunteer_is_admitted ... ok
+test carrier::tests::bundle_and_receipt_cross_a_pinned_encrypted_session ... ok
+test transport::tests::test_ciphertext_on_the_wire_is_not_the_plaintext ... ok
+test transport::tests::test_messages_in_one_bucket_have_equal_ciphertext_length ... ok
+test transport::tests::test_padded_round_trip_is_exact ... ok
+test transport::tests::test_replayed_record_is_rejected ... ok
+test transport::tests::test_reordered_records_are_rejected ... ok
+test transport::tests::test_tampered_ciphertext_is_rejected ... ok
+test transport::tests::test_tampered_length_header_is_rejected ... ok
+test transport::tests::test_round_trip_both_directions ... ok
+test learner::tests::test_same_seed_gives_identical_params ... ok
+test transport::tests::test_malformed_padding_is_rejected ... ok
+test scoring::tests::test_random_delta_scores_negative ... ok
+test scoring::tests::test_honest_delta_scores_positive ... ok
+test scoring::tests::test_teaching_text_like_heldout_scores_positive ... ok
+test scoring::tests::test_random_bytes_as_teaching_text_score_at_most_zero ... ok
+test learner::tests::test_training_lowers_bits_per_byte_on_repetitive_text ... ok
+
+test result: ok. 76 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.34s
+
+     Running `$OH_TREE/target/debug/deps/oh_volunteer-b881b3086e89ee8c`
+
+running 4 tests
+test tests::test_parse_key_round_trip ... ok
+test tests::test_topic_hint_is_short_printable_and_from_the_shard ... ok
+test tests::test_summary_line_wording ... ok
+test tests::test_firewall_redacts_paths_and_refuses_secrets ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running `$OH_TREE/target/debug/deps/aienet0_serve-2ccda5606d18117d`
+
+running 6 tests
+test tests::crash_worker ... ignored, entry point for crash_recovery child process
+test tests::seen_rejects_write_only_file ... ok
+test tests::legacy_replay_is_refused ... ok
+test tests::seen_rejects_corruption ... ok
+test tests::crash_recovery ... ok
+test tests::concurrent_duplicate_executes_once ... ok
+
+test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.30s
+
+     Running `$OH_TREE/target/debug/deps/oh_volunteer-44feac70c5c55e7a`
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running `$OH_TREE/target/debug/deps/data_stays_home-c7de8b6637e1e0d1`
+
+running 5 tests
+test test_base_model_with_absurd_width_is_refused ... ok
+test test_work_unit_from_unexpected_coordinator_is_refused ... ok
+test test_work_unit_with_bad_signature_is_refused ... ok
+test test_base_model_that_does_not_match_the_unit_is_refused ... ok
+test test_update_frame_carries_no_shard_bytes ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running `$OH_TREE/target/debug/deps/teaching-7a8230fbb0f71f0d`
+
+running 5 tests
+test test_unsigned_work_unit_is_refused_before_the_teacher_runs ... ok
+test test_teacher_failure_or_empty_text_sends_nothing ... ok
+test test_text_with_a_fake_api_key_is_refused ... ok
+test test_teaching_frame_carries_only_firewalled_text ... ok
+test test_echoing_teacher_leaks_no_shard_bytes_beyond_the_hint ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+   Doc-tests beacon_client
+     Running `$HOME/.rustup/toolchains/stable-aarch64-unknown-linux-gnu/bin/rustdoc --edition=2021 --crate-type lib --color auto --crate-name beacon_client --test crates/beacon-client/src/lib.rs --test-run-directory $OH_TREE/crates/beacon-client -L native=$OH_TREE/target/debug/build/blake3-ac774d7d4ec563dc/out -L native=$OH_TREE/target/debug/build/libsqlite3-sys-388b7da5c6090054/out -L native=$OH_TREE/target/debug/build/ring-26c87a1670552255/out --extern beacon_client=$OH_TREE/target/debug/deps/libbeacon_client-f7ae514095123f5b.rlib --extern beacon_core=$OH_TREE/target/debug/deps/libbeacon_core-e08fa705112eb2b1.rlib --extern rand=$OH_TREE/target/debug/deps/librand-ad99d1ee96877c29.rlib --extern reqwest=$OH_TREE/target/debug/deps/libreqwest-b6cf655212795574.rlib --extern rusqlite=$OH_TREE/target/debug/deps/librusqlite-d8413a294eb62cd4.rlib --extern serde=$OH_TREE/target/debug/deps/libserde-d09741a8257e640f.rlib --extern serde_json=$OH_TREE/target/debug/deps/libserde_json-32db16b1477776b3.rlib --extern tempfile=$OH_TREE/target/debug/deps/libtempfile-2f6977bc085afaf2.rlib --extern thiserror=$OH_TREE/target/debug/deps/libthiserror-594477c4609cff12.rlib --extern tokio=$OH_TREE/target/debug/deps/libtokio-c55ffbc6adcf9919.rlib --extern tracing=$OH_TREE/target/debug/deps/libtracing-5d14575c80404254.rlib --extern tracing_subscriber=$OH_TREE/target/debug/deps/libtracing_subscriber-2c6afbb27d2d6dc1.rlib --extern uuid=$OH_TREE/target/debug/deps/libuuid-2ebbd44cb7415e95.rlib --extern x25519_dalek=$OH_TREE/target/debug/deps/libx25519_dalek-41fa12a8294b36ca.rlib -L dependency=$OH_TREE/target/debug/deps -C embed-bitcode=no --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' --error-format human`
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests beacon_core
+     Running `$HOME/.rustup/toolchains/stable-aarch64-unknown-linux-gnu/bin/rustdoc --edition=2021 --crate-type lib --color auto --crate-name beacon_core --test crates/beacon-core/src/lib.rs --test-run-directory $OH_TREE/crates/beacon-core -L native=$OH_TREE/target/debug/build/blake3-ac774d7d4ec563dc/out -L native=$OH_TREE/target/debug/build/libsqlite3-sys-388b7da5c6090054/out -L native=$OH_TREE/target/debug/build/ring-26c87a1670552255/out --extern beacon_core=$OH_TREE/target/debug/deps/libbeacon_core-e08fa705112eb2b1.rlib --extern bincode=$OH_TREE/target/debug/deps/libbincode-33050eaf4c6f2c26.rlib --extern blake3=$OH_TREE/target/debug/deps/libblake3-c228449a5308177c.rlib --extern chacha20poly1305=$OH_TREE/target/debug/deps/libchacha20poly1305-ae2741d16ca4ed3e.rlib --extern crumb_spec=$OH_TREE/target/debug/deps/libcrumb_spec-22ece3790aa1988e.rlib --extern ed25519_dalek=$OH_TREE/target/debug/deps/libed25519_dalek-a89e6cc404739cd5.rlib --extern rand=$OH_TREE/target/debug/deps/librand-ad99d1ee96877c29.rlib --extern regex=$OH_TREE/target/debug/deps/libregex-6efc5d1e30b3e624.rlib --extern serde=$OH_TREE/target/debug/deps/libserde-d09741a8257e640f.rlib --extern spark_crumbs=$OH_TREE/target/debug/deps/libspark_crumbs-9e8723f159421a4e.rlib --extern thiserror=$OH_TREE/target/debug/deps/libthiserror-594477c4609cff12.rlib --extern uuid=$OH_TREE/target/debug/deps/libuuid-2ebbd44cb7415e95.rlib --extern x25519_dalek=$OH_TREE/target/debug/deps/libx25519_dalek-41fa12a8294b36ca.rlib -L dependency=$OH_TREE/target/debug/deps -C embed-bitcode=no --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' --error-format human`
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests oh_coordinator
+     Running `$HOME/.rustup/toolchains/stable-aarch64-unknown-linux-gnu/bin/rustdoc --edition=2021 --crate-type lib --color auto --crate-name oh_coordinator --test crates/oh-coordinator/src/lib.rs --test-run-directory $OH_TREE/crates/oh-coordinator -L native=$OH_TREE/target/debug/build/blake3-ac774d7d4ec563dc/out -L native=$OH_TREE/target/debug/build/libsqlite3-sys-388b7da5c6090054/out -L native=$OH_TREE/target/debug/build/ring-26c87a1670552255/out --extern aien_microjob=$OH_TREE/target/debug/deps/libaien_microjob-208de8af6fd2ea32.rlib --extern beacon_core=$OH_TREE/target/debug/deps/libbeacon_core-e08fa705112eb2b1.rlib --extern blake3=$OH_TREE/target/debug/deps/libblake3-c228449a5308177c.rlib --extern oh_coordinator=$OH_TREE/target/debug/deps/liboh_coordinator-e47df11e94fa2875.rlib --extern oh_core=$OH_TREE/target/debug/deps/liboh_core-fad6909e2681429a.rlib --extern oh_volunteer=$OH_TREE/target/debug/deps/liboh_volunteer-5844045fcd6e94ef.rlib --extern p256=$OH_TREE/target/debug/deps/libp256-b2a7216e8cb5819f.rlib --extern rand=$OH_TREE/target/debug/deps/librand-ad99d1ee96877c29.rlib --extern sha2=$OH_TREE/target/debug/deps/libsha2-74d6e8fa58976e30.rlib -L dependency=$OH_TREE/target/debug/deps -C embed-bitcode=no --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' --error-format human`
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests oh_core
+     Running `$HOME/.rustup/toolchains/stable-aarch64-unknown-linux-gnu/bin/rustdoc --edition=2021 --crate-type lib --color auto --crate-name oh_core --test crates/oh-core/src/lib.rs --test-run-directory $OH_TREE/crates/oh-core -L native=$OH_TREE/target/debug/build/blake3-ac774d7d4ec563dc/out -L native=$OH_TREE/target/debug/build/libsqlite3-sys-388b7da5c6090054/out -L native=$OH_TREE/target/debug/build/ring-26c87a1670552255/out --extern beacon_core=$OH_TREE/target/debug/deps/libbeacon_core-e08fa705112eb2b1.rlib --extern bincode=$OH_TREE/target/debug/deps/libbincode-33050eaf4c6f2c26.rlib --extern blake3=$OH_TREE/target/debug/deps/libblake3-c228449a5308177c.rlib --extern oh_core=$OH_TREE/target/debug/deps/liboh_core-fad6909e2681429a.rlib --extern serde=$OH_TREE/target/debug/deps/libserde-d09741a8257e640f.rlib --extern serde_json=$OH_TREE/target/debug/deps/libserde_json-32db16b1477776b3.rlib --extern thiserror=$OH_TREE/target/debug/deps/libthiserror-594477c4609cff12.rlib --extern zeroize=$OH_TREE/target/debug/deps/libzeroize-65dd099f57382002.rlib -L dependency=$OH_TREE/target/debug/deps -C embed-bitcode=no --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' --error-format human`
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests oh_volunteer
+     Running `$HOME/.rustup/toolchains/stable-aarch64-unknown-linux-gnu/bin/rustdoc --edition=2021 --crate-type lib --color auto --crate-name oh_volunteer --test crates/oh-volunteer/src/lib.rs --test-run-directory $OH_TREE/crates/oh-volunteer -L native=$OH_TREE/target/debug/build/blake3-ac774d7d4ec563dc/out -L native=$OH_TREE/target/debug/build/libsqlite3-sys-388b7da5c6090054/out -L native=$OH_TREE/target/debug/build/ring-26c87a1670552255/out --extern aien_microjob=$OH_TREE/target/debug/deps/libaien_microjob-208de8af6fd2ea32.rlib --extern beacon_core=$OH_TREE/target/debug/deps/libbeacon_core-e08fa705112eb2b1.rlib --extern oh_core=$OH_TREE/target/debug/deps/liboh_core-fad6909e2681429a.rlib --extern oh_volunteer=$OH_TREE/target/debug/deps/liboh_volunteer-5844045fcd6e94ef.rlib --extern p256=$OH_TREE/target/debug/deps/libp256-b2a7216e8cb5819f.rlib --extern sha2=$OH_TREE/target/debug/deps/libsha2-74d6e8fa58976e30.rlib --extern thiserror=$OH_TREE/target/debug/deps/libthiserror-594477c4609cff12.rlib -L dependency=$OH_TREE/target/debug/deps -C embed-bitcode=no --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' --error-format human`
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+    Fetching advisory database from `https://github.com/RustSec/advisory-db.git`
+      Loaded 1381 security advisories (from $HOME/.cargo/advisory-db)
+    Updating crates.io index
+    Scanning Cargo.lock for vulnerabilities (284 crate dependencies)
+Crate:     tokio
+Version:   1.53.1
+Warning:   unsound
+Title:     `AsyncFd::new` and related constructors violate I/O safety
+Date:      2026-10-13
+ID:        RUSTSEC-2026-0386
+URL:       https://rustsec.org/advisories/RUSTSEC-2026-0386
+
+warning: 1 allowed warning found

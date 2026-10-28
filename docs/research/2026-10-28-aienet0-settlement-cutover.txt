@@ -640,3 +640,57 @@ PASS persistent-write-failure (driver 1, reserved, native audit 0)
 PASS persistent-write-failure.operator-refund-after-fault-cleared
 ADAPTER controls failures=2
 
+FOLLOW-ON FIXTURE REPAIR ADDENDUM
+
+The initial receipt above was captured at the first cutover commit e4467c2.
+Its initial parallel failure and subsequent serial diagnostic remain history,
+not final repair evidence. At the operator's request, the observed identity
+ETXTBUSY exposure is repaired in this same work rather than left as preexisting.
+
+Source map: the only oh-core subprocess invocation is identity.rs Command.output.
+Both subprocess-producing identity tests now hold a local tests-only
+VAULT_FIXTURES Mutex for the complete fixture-write/chmod/spawn/wait/cleanup
+lifetime, including missing-vault, false-vault and wrong-name cases. This reuses
+the existing requester recompute-fixture pattern in its own test process.
+No production code, retry, error suppression, dependency, ignored-test list or
+workspace/global test-thread setting changed. A concurrently forked pre-exec
+child inheriting a writer descriptor is the source-supported exposure mechanism;
+the original failure did not trace that descriptor, so that causal attribution
+remains INFERENCE, not a traced kernel receipt.
+
+Before repair, the actual default command failed at identity.rs151 with
+Text file busy (os error26), captured above and in artifact3793. The unchanged
+official preflight was started before the repair directive and later passed
+(artifact3861); this is explicitly PRE-REPAIR, not repair evidence.
+
+After repair, exactly this sequence was exercised without a thread override:
+cargo test -p oh-core --lib identity::tests::
+cargo test --workspace --verbose
+cargo audit
+
+Observed exit0 for the sequence:
+focused identity regressions: 4 passed;
+default parallel full workspace: 154 passed across22suites,3ignored;
+audit: one existing allowed Tokio1.53.1 RUSTSEC-2026-0386 warning.
+The default full workspace was run once after this fixture repair.
+The serial diagnostic is not substituted for that normal gate.
+
+identity.rs source SHA256:
+5b560c284a28117f83942c34f7d648e72fa07312961bb823d496043e797b265b
+Complete post-repair gate transcript (machine-local path projection labeled):
+docs/research/2026-10-28-aienet0-vault-fixture-parallel.log
+SHA256 19e4994b2c9da830e98c21287be1f5f6af34935ab74090d25012576672973a3a
+Original tool transcript: artifact3881.
+
+The new Rust edit is confined to the existing oh-core cfg(test) module.
+Production carrier source/dependencies and the previously exercised signed
+adapter/ledger path are unchanged. The earlier d7ea88b native carrier source
+pin remains labeled as the actual build used for nine controls/two mutants;
+it is not relabeled as a newly built binary from the fixture-repair head.
+
+OH47 is non-draft. At the initial cutover head, GitHub returned empty
+statusCheckRollup and no branch Actions runs; gh pr checks reported no checks.
+The clone has no .github/workflows. GitHub's workflow catalog still lists two
+entries, but authenticated GET of current main's ci.yml returns404.
+These facts do not establish a CI PASS; final-head CI is reported separately.
+No workflow, trust rule or gate was added, removed or relaxed.
