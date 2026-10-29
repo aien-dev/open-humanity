@@ -1,0 +1,29 @@
+{
+  "extensions": {
+    "generated": {
+      "children": [
+        {
+          "digest": "7249cd9fafc63780e6267b130649f49bc3a67eb14cfb14e9224cfa0645070454",
+          "last_commit": "b368ea8",
+          "name": "workflows",
+          "purpose": "Read-only hosted build, test and SBOM verification."
+        }
+      ],
+      "children_root": "sha256:8c45732a403916815d626999d7746e6f5a8cb827aff0b859795d8a8b397c0252",
+      "compiled_at": "2026-10-29T02:48:14Z",
+      "compiler": "crumb-compile/1",
+      "digest": "sha256:f749ec5b3025ea27b5adfe9a06dad2fd859667776e24d152f876a17313617614",
+      "evidence_files": 0,
+      "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "files": 2,
+      "generated_at_commit": "b1594523fcb582157e8587cec053366d1fe30f00",
+      "source_tree": "sha256:33b5b66b458380f5e021db210d160f05a3c3bd1fdc71a6382ef300ba7b39af90"
+    }
+  },
+  "invariants": [
+    "Automated dependency updates propose changes through pull requests."
+  ],
+  "name": ".github",
+  "purpose": "Repository automation and dependency update proposals.",
+  "schema_version": "1.0.0"
+}
