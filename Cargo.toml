@@ -7,6 +7,7 @@ members = [
     "crates/oh-core",
     "crates/oh-coordinator",
     "crates/oh-volunteer",
+    "crates/oh-infer",
 ]
 
 [workspace.package]
