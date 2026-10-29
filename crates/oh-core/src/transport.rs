@@ -97,6 +97,8 @@ pub enum TransportError {
     KeyAgreement,
     #[error("coordinator key {got} is not the pinned key {expected}")]
     WrongCoordinator { expected: String, got: String },
+    #[error("volunteer key {got} is not the pinned key {expected}")]
+    WrongVolunteer { expected: String, got: String },
 }
 
 /// Which coordinator identity a volunteer accepts.
@@ -183,6 +185,7 @@ pub fn volunteer_handshake<S: Read + Write>(
     let theirs = Hello::read(&mut stream)?;
     theirs.verify(&coordinator_prefix(&mine))?;
     if let CoordinatorPin::Key(expected) = pin {
+        // AN0-GUARD coordinator-pin
         if theirs.identity() != expected {
             return Err(TransportError::WrongCoordinator {
                 expected: hex(&expected),
@@ -197,13 +200,42 @@ pub fn volunteer_handshake<S: Read + Write>(
     Ok(EncryptedStream::new(stream, &v2c, &c2v, theirs.identity()))
 }
 
-/// Coordinator side of the handshake.
+/// Coordinator side of the handshake. Accepts any volunteer identity; the
+/// caller reads it from [`EncryptedStream::peer_identity`].
 pub fn coordinator_handshake<S: Read + Write>(
+    stream: S,
+    identity: &Keypair,
+) -> Result<EncryptedStream<S>, TransportError> {
+    coordinator_handshake_inner(stream, identity, None)
+}
+
+/// Coordinator side of the handshake that admits only the volunteer
+/// `expected`. A volunteer with any other key is refused after its hello
+/// verifies and before the coordinator sends anything.
+pub fn coordinator_handshake_pinned<S: Read + Write>(
+    stream: S,
+    identity: &Keypair,
+    expected: [u8; 32],
+) -> Result<EncryptedStream<S>, TransportError> {
+    coordinator_handshake_inner(stream, identity, Some(expected))
+}
+
+fn coordinator_handshake_inner<S: Read + Write>(
     mut stream: S,
     identity: &Keypair,
+    pin: Option<[u8; 32]>,
 ) -> Result<EncryptedStream<S>, TransportError> {
     let theirs = Hello::read(&mut stream)?;
     theirs.verify(VOLUNTEER_CONTEXT)?;
+    if let Some(expected) = pin {
+        // AN0-GUARD volunteer-pin
+        if theirs.identity() != expected {
+            return Err(TransportError::WrongVolunteer {
+                expected: hex(&expected),
+                got: hex(&theirs.identity()),
+            });
+        }
+    }
     let eph = EphemeralKeyAgreement::generate();
     let mine = Hello::new(identity, &eph.public_bytes(), &coordinator_prefix(&theirs));
     stream.write_all(&mine.bytes)?;
@@ -630,6 +662,7 @@ mod tests {
     fn test_wrong_pinned_key_is_refused() {
         let other = Keypair::generate().pubkey_bytes();
         let (v, _c) = session(|_| CoordinatorPin::Key(other));
+        assert!(v.is_err(), "AN0_SEMANTIC coordinator-pin");
         assert!(matches!(v, Err(TransportError::WrongCoordinator { .. })));
     }
 
@@ -638,6 +671,47 @@ mod tests {
         let (v, c) = session(|_| CoordinatorPin::TrustFirstUse);
         let (v, _c) = (v.unwrap(), c.unwrap());
         assert_ne!(v.peer_identity(), [0u8; 32]);
+    }
+
+    /// (volunteer result, coordinator result, volunteer identity) with the
+    /// coordinator pinning `pin(volunteer identity)`.
+    fn pinned_volunteer_session(
+        pin: impl FnOnce(&Keypair) -> [u8; 32],
+    ) -> (
+        Result<EncryptedStream<TcpStream>, TransportError>,
+        Result<EncryptedStream<TcpStream>, TransportError>,
+        [u8; 32],
+    ) {
+        let (v, c) = tcp_pair();
+        let coord = Keypair::generate();
+        let vol = Keypair::generate();
+        let expected = pin(&vol);
+        let coord_pin = CoordinatorPin::Key(coord.pubkey_bytes());
+        let handle = thread::spawn(move || coordinator_handshake_pinned(c, &coord, expected));
+        let v = volunteer_handshake(v, &vol, coord_pin);
+        (v, handle.join().unwrap(), vol.pubkey_bytes())
+    }
+
+    #[test]
+    fn test_pinned_volunteer_is_admitted() {
+        let (v, c, vol) = pinned_volunteer_session(|k| k.pubkey_bytes());
+        let (mut v, mut c) = (v.unwrap(), c.unwrap());
+        assert_eq!(c.peer_identity(), vol);
+        v.write_all(b"job").unwrap();
+        v.flush().unwrap();
+        let mut buf = [0u8; 3];
+        c.read_exact(&mut buf).unwrap();
+        assert_eq!(&buf, b"job");
+    }
+
+    #[test]
+    fn test_unpinned_volunteer_is_refused_before_the_coordinator_speaks() {
+        let other = Keypair::generate().pubkey_bytes();
+        let (v, c, _) = pinned_volunteer_session(|_| other);
+        assert!(c.is_err(), "AN0_SEMANTIC volunteer-pin");
+        assert!(matches!(c, Err(TransportError::WrongVolunteer { .. })));
+        // The coordinator sent no hello: the volunteer sees the stream end.
+        assert!(matches!(v, Err(TransportError::Io(_))));
     }
 
     #[test]

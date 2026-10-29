@@ -5,6 +5,7 @@
 //! (held-out bits saved) and credits the volunteer. Design notes live in
 //! `docs/design/volunteer-compute-v0.md`.
 
+pub mod carrier;
 pub mod identity;
 pub mod learner;
 pub mod scoring;
