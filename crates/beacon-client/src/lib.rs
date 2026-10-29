@@ -220,8 +220,7 @@ mod tests {
             );
             BeaconStorage::record_outbound_beacon_tx(&tx, &sig_b)?;
 
-            Err(StorageError::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
+            Err(StorageError::Io(std::io::Error::other(
                 "Simulated disk IO error during transaction",
             )))
         })();

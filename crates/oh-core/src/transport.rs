@@ -673,13 +673,15 @@ mod tests {
         assert_ne!(v.peer_identity(), [0u8; 32]);
     }
 
+    type HandshakeResult = Result<EncryptedStream<TcpStream>, TransportError>;
+
     /// (volunteer result, coordinator result, volunteer identity) with the
     /// coordinator pinning `pin(volunteer identity)`.
     fn pinned_volunteer_session(
         pin: impl FnOnce(&Keypair) -> [u8; 32],
     ) -> (
-        Result<EncryptedStream<TcpStream>, TransportError>,
-        Result<EncryptedStream<TcpStream>, TransportError>,
+        HandshakeResult,
+        HandshakeResult,
         [u8; 32],
     ) {
         let (v, c) = tcp_pair();

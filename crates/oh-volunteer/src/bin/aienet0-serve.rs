@@ -87,6 +87,8 @@ fn keys(dir: &Path) -> Result<(beacon_core::Keypair, p256::ecdsa::SigningKey), F
 const STATE_HEADER: &str = "AIENET0-STATE-V1\n";
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
 
+// Keep the bounded receipt inline with its job rather than allocate it separately.
+#[allow(clippy::large_enum_variant)]
 enum JobState {
     Legacy,
     Job {
@@ -96,6 +98,8 @@ enum JobState {
     },
 }
 
+// This short-lived decision carries the same fixed-size receipt by value.
+#[allow(clippy::large_enum_variant)]
 enum Admission {
     Execute,
     Cached([u8; RECEIPT_LEN]),
