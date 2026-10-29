@@ -80,7 +80,7 @@ repository. `Cargo.lock` is committed.
 cargo build --locked --workspace --all-targets
 ```
 
-## Run every test
+## Verification commands
 
 ```sh
 cargo test --locked --workspace --verbose
@@ -99,7 +99,8 @@ bash scripts/test-agent-preflight.sh
 - PR #49 integration: full workspace tests passed (155 passed, 3 existing ignored), strict
   workspace Clippy passed, and cargo audit reported no vulnerabilities or warnings. These
   checks do not establish correctness of settlement or hardware behavior. The new CI build,
-  SBOM and this proposal's preflight checks need their own current-head results before merge.
+  SBOM and preflight results for this proposal are recorded on PR #50. Existing ignored
+  measurement tests remain unrun; a passing suite does not imply those tests ran.
 - The preflight filename scan covers only `.env*` names within three directory levels.
   It does not inspect secret contents, verify the vault or certify a machine as secret-free.
 
