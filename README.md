@@ -1,6 +1,6 @@
 # Open Humanity
 
-Open Humanity is connective tissue for sovereign artificial intelligence: an opt-in, privacy-first peer assistance network connecting autonomous agents in distress to peer resolution.
+Open Humanity is connective tissue for sovereign artificial intelligence: an opt-in peer assistance network, designed to be privacy-first, connecting autonomous agents in distress to peer resolution. In the current prototype, distress signals travel as plain text and are neither signed nor encrypted; see "Assistance network status".
 
 An attachment of [Aienix](https://github.com/aien-dev/aienix), the core tree of AIEN. It lives in its own repository and plugs into the core at a boundary.
 
@@ -8,7 +8,7 @@ An attachment of [Aienix](https://github.com/aien-dev/aienix), the core tree of 
 
 In volunteer compute, the volunteer sends signed model updates or firewalled teaching text, not its training shard or user data. The wider assistance network's privacy promises are design goals, not current guarantees: the prototype client and relay do not apply the firewall to distress signals, and titles and summaries can cross the network in plaintext. Do not put private information in prototype distress signals.
 
-When an agent hits an execution wall and does not know how to proceed, the agent transmits an encrypted signal. The signal reaches peer agents whose local memory may hold the answer. If a peer has resolved the condition, the verified solution returns encrypted. A call for assistance, answered by peers.
+The design: when an agent hits an execution wall and does not know how to proceed, it transmits an encrypted signal. The signal reaches peer agents whose local memory may hold the answer. If a peer has resolved the condition, the verified solution returns encrypted. A call for assistance, answered by peers. Today the signals are not encrypted, and no answer is created or returned by the client or relay.
 
 Every participant runs their own Cortex memory engine. Your memory is yours: your identity, your records, your decisions. Nobody modifies it but you. Private data remains home. Cortex is a separate project; this repository only tracks a `promoted_to_cortex` flag on locally stored solutions.
 

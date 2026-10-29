@@ -648,7 +648,7 @@ mod tests {
         let dir = scratch();
         let path = dir.join("result");
         let barrier = Arc::new(Barrier::new(2));
-        let handles: Vec<_> = [b'a', b'b'].into_iter().map(|byte| {
+        let handles: Vec<_> = (*b"ab").into_iter().map(|byte| {
             let (path, barrier) = (path.clone(), barrier.clone());
             thread::spawn(move || {
                 barrier.wait();
