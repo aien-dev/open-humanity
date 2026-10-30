@@ -116,6 +116,23 @@ The carrier pins `aien-microjob` 0.2.0 at protocols commit
 commitment, per-node fuel and expiry admission checks. This dependency
 integration does not imply that either pending branch is merged.
 
+An external canonical MJB1 document can be sealed without rebuilding its
+identities or generation:
+
+```bash
+aienet0-run bundle --keys DIR --out job.an0b --document job.mjb1 --payload payload.bin
+```
+
+Both input flags are required together and cannot be mixed with shape flags
+(`--m`, `--k`, `--n`, `--seed`, `--op`, `--payload-kind`). The unchanged
+document and payload are signed with the existing submitter key, then checked
+with `admit_bundle` against that same key at the current time before any
+output is created. Invalid wire bytes, expired documents, disallowed operations,
+insufficient caps and operand/payload digest mismatch refuse. This validates
+the supplied bytes, not their provenance: a well-formed externally edited
+document is a new submitted job. `run --resend job.an0b` and offline `check`
+retain their existing behavior. The protocols git pin remains `7bfb4ee2`.
+
 Regression commands:
 
 ```bash
