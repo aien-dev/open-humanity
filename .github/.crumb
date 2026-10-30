@@ -3,21 +3,21 @@
     "generated": {
       "children": [
         {
-          "digest": "7249cd9fafc63780e6267b130649f49bc3a67eb14cfb14e9224cfa0645070454",
-          "last_commit": "b368ea8",
+          "digest": "c95328a65d1e0777a0c9038e4faf5a6a7132e9bd11d00fa0217385cae3b40eb9",
+          "last_commit": "839d332",
           "name": "workflows",
-          "purpose": "Read-only hosted build, test and SBOM verification."
+          "purpose": "Read-only hosted SBOM generation; build and test run locally on the Spark."
         }
       ],
-      "children_root": "sha256:8c45732a403916815d626999d7746e6f5a8cb827aff0b859795d8a8b397c0252",
-      "compiled_at": "2026-10-29T02:48:14Z",
+      "children_root": "sha256:2568833a38e8a3cd7d105a26105b16ac90fbf78d44529608f798106bd90f2e9f",
+      "compiled_at": "2026-10-30T02:52:10Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:f749ec5b3025ea27b5adfe9a06dad2fd859667776e24d152f876a17313617614",
+      "digest": "sha256:4154f5a79128863f63e8ba55e7a12a4b177f84e850390bb4e58ed7abbe05d278",
       "evidence_files": 0,
       "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "files": 2,
-      "generated_at_commit": "b1594523fcb582157e8587cec053366d1fe30f00",
-      "source_tree": "sha256:33b5b66b458380f5e021db210d160f05a3c3bd1fdc71a6382ef300ba7b39af90"
+      "generated_at_commit": "15b5612139613eb775aac9469fbfdf93909572d7",
+      "source_tree": "sha256:de7f53d5d957a25b627f3b25f92bdb66c049aa8b7743b05de162d49da406a282"
     }
   },
   "invariants": [

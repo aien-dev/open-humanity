@@ -3,21 +3,21 @@
     "generated": {
       "children": [
         {
-          "digest": "f749ec5b3025ea27b5adfe9a06dad2fd859667776e24d152f876a17313617614",
+          "digest": "4154f5a79128863f63e8ba55e7a12a4b177f84e850390bb4e58ed7abbe05d278",
           "last_commit": "839d332",
           "name": ".github",
           "purpose": "Repository automation and dependency update proposals."
         }
       ],
-      "children_root": "sha256:ada656b53389354ec61ca379a6d095e3e48f120c98497da5dc9cb0d56d66fdbd",
-      "compiled_at": "2026-10-29T02:50:57Z",
+      "children_root": "sha256:58a0b8b4a5f00d5e40431c417ab94217c80567a6f895dbaeb11006075a35b8c0",
+      "compiled_at": "2026-10-30T02:52:10Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:3fa2c5ce89509da99b589a65922775d2a60f44601ed0fb2be49ccf2a89d12b51",
+      "digest": "sha256:e57062140950161464ca2fcd657669d9d55fc47d095b025809738be52544a3d5",
       "evidence_files": 0,
       "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "files": 71,
-      "generated_at_commit": "839d332b28ac22c02ade3cf4eefeb8c3adbff6be",
-      "source_tree": "sha256:581fa2fc40fd5e678421c5bd1d7fcd6ade86a74b1fd8f74da1be429e92f8b866"
+      "generated_at_commit": "15b5612139613eb775aac9469fbfdf93909572d7",
+      "source_tree": "sha256:5cb12f75e3b32a747b34d979fff5f555de9454a1778c8cb2ab982557193e5c3f"
     }
   },
   "invariants": [

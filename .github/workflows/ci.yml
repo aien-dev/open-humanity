@@ -1,6 +1,6 @@
-# CI: build and test with the committed Cargo.lock (--locked refuses any silent dependency
-# drift) on a GitHub-hosted runner, with pinned actions and read-only token permissions.
-# A second job writes an SPDX SBOM of the tree so auditors can diff what a commit contains.
+# CI: read-only SPDX SBOM of the tree so auditors can diff what a commit contains, with pinned
+# actions and read-only token permissions. Build and test do not run on GitHub-hosted runners
+# (rule of 2026-10-18, #25); they run locally on the Spark.
 name: CI
 on:
   pull_request:
@@ -9,22 +9,6 @@ on:
 permissions:
   contents: read
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          persist-credentials: false
-      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
-      - name: Toolchain record
-        run: rustc --version && cargo --version
-      - name: Build
-        run: cargo build --locked --workspace --all-targets
-      - name: Test
-        run: cargo test --locked --workspace
-      - name: Preflight failure controls
-        run: bash scripts/test-agent-preflight.sh
   sbom:
     runs-on: ubuntu-latest
     timeout-minutes: 10

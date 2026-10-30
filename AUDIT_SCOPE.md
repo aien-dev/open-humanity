@@ -42,10 +42,10 @@ send firewalled text from a model on its own machine. Six Rust crates: `beacon-c
    The settlement adapter belongs to aien-protocols-mv; its external ledger boundary needs
    separate review. File-based identities in the Aienet-0 test CLI are test fixtures, not wallets.
 10. Scripts: `scripts/agent-preflight.sh`, `demo-local.sh`, `demo-teach.sh`, `volunteer-gap.sh`.
-   `.github/workflows/ci.yml` (added by the audit-readiness change) runs `cargo build --locked
-   --workspace --all-targets`, `cargo test --locked --workspace` and the synthetic preflight
-   failure controls on a GitHub-hosted runner and publishes an SPDX
-   SBOM artifact; actions pinned by commit sha, read-only token.
+   `.github/workflows/ci.yml` (added by the audit-readiness change) only publishes an SPDX
+   SBOM artifact; actions pinned by commit sha, read-only token. Build and test do not run in
+   hosted CI: they run locally on the Spark (`cargo test --locked --workspace`,
+   `bash scripts/test-agent-preflight.sh`).
 
 ## Trust boundaries
 
@@ -98,8 +98,10 @@ bash scripts/test-agent-preflight.sh
   (`VOLUNTEER_VAULT_KEYS`, `VOLUNTEER_VAULT_KEY`); teaching mode needs a local model server.
 - PR #49 integration: full workspace tests passed (155 passed, 3 existing ignored), strict
   workspace Clippy passed, and cargo audit reported no vulnerabilities or warnings. These
-  checks do not establish correctness of settlement or hardware behavior. The new CI build,
-  SBOM and preflight results for this proposal are recorded on PR #50. Existing ignored
+  checks do not establish correctness of settlement or hardware behavior. Build, test and
+  preflight results for this proposal come from local Spark runs (`cargo test --locked
+  --workspace`, `bash scripts/test-agent-preflight.sh`) recorded on PR #50; hosted CI only
+  produces the SBOM. Existing ignored
   measurement tests remain unrun; a passing suite does not imply those tests ran.
 - The preflight filename scan covers only `.env*` names within three directory levels.
   It does not inspect secret contents, verify the vault or certify a machine as secret-free.
