@@ -492,7 +492,7 @@ mod tests {
 
     #[test]
     fn test_non_loopback_teacher_is_refused_without_connecting() {
-        for addr in ["10.0.0.1:18091", "192.168.1.5:80", "[2001:db8::1]:80"] {
+        for addr in ["10.0.0.1:18091", "203.0.113.5:80", "[2001:db8::1]:80"] {
             let err = LocalHttpTeacher::new(addr, "m")
                 .generate("hi", 1)
                 .unwrap_err();

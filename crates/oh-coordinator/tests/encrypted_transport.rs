@@ -95,6 +95,9 @@ fn test_eavesdropper_sees_no_shard_or_teaching_bytes() {
     .unwrap();
     let key = coordinator.pubkey();
     let train = LICENSE[..coordinator.train_len()].to_vec();
+    let trainer_node = Keypair::generate();
+    let node = Keypair::generate();
+    coordinator.approve_volunteers([trainer_node.pubkey_bytes(), node.pubkey_bytes()]);
 
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let (relay, capture) = eavesdropper(listener.local_addr().unwrap(), 2);
@@ -112,12 +115,11 @@ fn test_eavesdropper_sees_no_shard_or_teaching_bytes() {
         coordinator_key: Some(key),
     };
     let trainer = thread::spawn(move || {
-        let node = Keypair::generate();
+        let node = trainer_node;
         let stream = TcpStream::connect(relay).unwrap();
         let mut s = volunteer_handshake(stream, &node, CoordinatorPin::Key(key)).unwrap();
         run_once(&mut s, &node, &vol_settings(1)).unwrap()
     });
-    let node = Keypair::generate();
     let stream = TcpStream::connect(relay).unwrap();
     let mut s = volunteer_handshake(stream, &node, CoordinatorPin::Key(key)).unwrap();
     let taught = teach_once(&mut s, &node, &vol_settings(2), &FakeTeacher, 64).unwrap();

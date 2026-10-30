@@ -1,11 +1,15 @@
 //! `oh-volunteer`: lend this machine's time to train the shared model.
 //!
-//! Usage: oh-volunteer --coordinator <addr> [--rounds <n>] [--seed <n>]
+//! Usage: oh-volunteer --coordinator <addr> --key-from-vault <NAME>
+//!        [--vault-bin <path>] [--rounds <n>] [--seed <n>]
 //!        [--keep <fraction>] (--coordinator-key <hex> | --trust-first-use)
 //!
-//!        oh-volunteer teach --coordinator <addr> [--teacher <host:port>]
-//!        [--model <id>] [--batches <n>] [--max-tokens <n>] [--seed <n>]
+//!        oh-volunteer teach --coordinator <addr> --key-from-vault <NAME>
+//!        [--teacher <host:port>] [--model <id>] [--batches <n>]
+//!        [--max-tokens <n>] [--seed <n>]
 //!        (--coordinator-key <hex> | --trust-first-use)
+//!
+//!        oh-volunteer --print-key --key-from-vault <NAME> [--vault-bin <path>]
 //!
 //! Every connection is encrypted (`oh_core::volunteer_handshake`). The
 //! coordinator must prove it holds `--coordinator-key` (printed by
@@ -21,13 +25,15 @@
 
 use beacon_core::Keypair;
 use oh_core::{
-    discover_model, volunteer_handshake, CoordinatorPin, EncryptedStream, LocalHttpTeacher,
+    discover_model, keypair_from_vault, parse_key, volunteer_handshake, CoordinatorPin,
+    EncryptedStream, LocalHttpTeacher,
 };
 use oh_volunteer::{
-    parse_key, run_once, summary_line, teach_once, teach_summary_line, Settings, VolunteerError,
+    run_once, summary_line, teach_once, teach_summary_line, Settings, VolunteerError,
     DEFAULT_KEEP_FRACTION, DEFAULT_TEACHER_ADDR, DEFAULT_TEACH_MAX_TOKENS,
 };
 use std::net::TcpStream;
+use std::path::PathBuf;
 use std::process::ExitCode;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -39,6 +45,9 @@ struct Args {
     settings: Settings,
     teach: Option<TeachArgs>,
     trust_first_use: bool,
+    key_from_vault: Option<String>,
+    vault_bin: PathBuf,
+    print_key: bool,
 }
 
 struct TeachArgs {
@@ -58,6 +67,9 @@ fn parse_args() -> Result<Args, String> {
         },
         teach: None,
         trust_first_use: false,
+        key_from_vault: None,
+        vault_bin: PathBuf::from("atlas-vault"),
+        print_key: false,
     };
     let mut it = std::env::args().skip(1).peekable();
     if it.peek().map(String::as_str) == Some("teach") {
@@ -73,9 +85,15 @@ fn parse_args() -> Result<Args, String> {
             args.trust_first_use = true;
             continue;
         }
+        if flag == "--print-key" {
+            args.print_key = true;
+            continue;
+        }
         let value = it.next().ok_or(format!("{flag} needs a value"))?;
         let bad = || format!("bad value for {flag}: {value}");
         match (flag.as_str(), args.teach.as_mut()) {
+            ("--key-from-vault", _) => args.key_from_vault = Some(value),
+            ("--vault-bin", _) => args.vault_bin = PathBuf::from(value),
             ("--coordinator", _) => args.coordinator = value,
             ("--rounds", None) | ("--batches", Some(_)) => {
                 args.rounds = value.parse().map_err(|_| bad())?
@@ -101,6 +119,12 @@ fn parse_args() -> Result<Args, String> {
             }
             _ => return Err(format!("unknown argument {flag}")),
         }
+    }
+    if args.key_from_vault.is_none() {
+        return Err("--key-from-vault <NAME> is required for an approved identity".into());
+    }
+    if args.print_key {
+        return Ok(args);
     }
     if args.coordinator.is_empty() {
         return Err("--coordinator <addr> is required".into());
@@ -224,8 +248,22 @@ fn main() -> ExitCode {
             return ExitCode::from(2);
         }
     };
-    // The key lives only in memory and is gone when the process exits.
-    let keypair = Keypair::generate();
+    let keypair = match keypair_from_vault(
+        &args.vault_bin,
+        args.key_from_vault
+            .as_deref()
+            .expect("validated vault name"),
+    ) {
+        Ok(key) => key,
+        Err(e) => {
+            eprintln!("oh-volunteer: {e}");
+            return ExitCode::FAILURE;
+        }
+    };
+    if args.print_key {
+        println!("volunteer key {}", hex(&keypair.pubkey_bytes()));
+        return ExitCode::SUCCESS;
+    }
     if args.teach.is_some() {
         teach(&mut args, &keypair)
     } else {

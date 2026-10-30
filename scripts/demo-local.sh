@@ -12,6 +12,8 @@
 #   ROUNDS=10 STEPS=500 DIM=32 SEEDS="1 2 3" scripts/demo-local.sh
 # KEEP is the share of each update a volunteer keeps (oh-volunteer --keep);
 # OUTER_LR scales the mean of the accepted updates (oh-coordinator --outer-lr).
+# Set VOLUNTEER_VAULT_KEYS to three distinct atlas-vault entry names whose
+# 32-byte identity seeds have already been created on the volunteer hosts.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -23,6 +25,11 @@ KEEP="${KEEP:-0.2}"
 OUTER_LR="${OUTER_LR:-1}"
 BASE_PORT="${BASE_PORT:-18100}"
 VOLUNTEERS=3
+read -r -a VAULT_KEYS <<< "${VOLUNTEER_VAULT_KEYS:-}"
+if [ "${#VAULT_KEYS[@]}" -ne "$VOLUNTEERS" ]; then
+    echo "Set VOLUNTEER_VAULT_KEYS to $VOLUNTEERS distinct atlas-vault entry names" >&2
+    exit 2
+fi
 
 # Set LOG_DIR to keep every process log; otherwise logs go to a temporary
 # directory that is removed on exit.
@@ -43,6 +50,11 @@ trap cleanup EXIT
 echo "Building release binaries..."
 cargo build --release --quiet -p oh-coordinator -p oh-volunteer --manifest-path "$ROOT/Cargo.toml"
 BIN="$ROOT/target/release"
+approved=()
+for name in "${VAULT_KEYS[@]}"; do
+    line="$("$BIN/oh-volunteer" --print-key --key-from-vault "$name")"
+    approved+=(--allow-volunteer "${line#volunteer key }")
+done
 
 CORPUS="$ROOT/LICENSE"
 echo "Corpus: LICENSE, $(wc -c < "$CORPUS") bytes, sha256 $(sha256sum "$CORPUS" | cut -c1-16)..."
@@ -75,7 +87,7 @@ base_results=()
 for seed in $SEEDS; do
     port=$((BASE_PORT + seed))
     coord_log="$WORK/coordinator-$seed.log"
-    "$BIN/oh-coordinator" "${common[@]}" --seed "$seed" --outer-lr "$OUTER_LR" \
+    "$BIN/oh-coordinator" "${common[@]}" "${approved[@]}" --seed "$seed" --outer-lr "$OUTER_LR" \
         --listen "127.0.0.1:$port" --ledger "$WORK/ledger-$seed.jsonl" > "$coord_log" 2>&1 &
     coord_pid=$!
     # Volunteers pin the key the coordinator prints, so the encrypted link
@@ -85,7 +97,8 @@ for seed in $SEEDS; do
     vol_pids=()
     for i in $(seq 1 "$VOLUNTEERS"); do
         "$BIN/oh-volunteer" --coordinator "127.0.0.1:$port" --rounds "$ROUNDS" \
-            --seed $((seed + i)) --coordinator-key "$key" --keep "$KEEP" \
+            --key-from-vault "${VAULT_KEYS[i-1]}" --seed $((seed + i)) \
+            --coordinator-key "$key" --keep "$KEEP" \
             > "$WORK/volunteer-$seed-$i.log" 2>&1 &
         vol_pids+=($!)
     done

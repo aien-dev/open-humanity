@@ -82,7 +82,7 @@ Short answer: yes for vetted groups with data-center class machines, not yet sho
 
 - DiLoCo-style and Psyche-style runs keep a full copy of the model and optimizer on every node. Mixed-precision Adam training costs about 16 bytes per parameter for weights, gradients and optimizer state (ZeRO paper, section 3.1, text read from the PDF: "2Ψ + 2Ψ + KΨ = 16Ψ bytes" with K = 12) [arXiv 1910.02054](https://arxiv.org/abs/1910.02054). That excludes activations.
 - Exact arithmetic: 0.75B parameters need 12 GB (calc:d23e22b30b1e1f5d206225e72db6ea4fd77e60541896099b3ff6351d1660a32b); 1.5B need 24 GB (calc:a1b5273233027b6cd00b41bb83893fc6a96e03e7cb3c815f56aa4c473b69fc07), before activations.
-- Measured here on the Spark, OBSERVED ([own-model-results.md](file:///home/drakestapleton/.t3/projects/research/notes/own-model-results.md)): a 124M model peaked at 10.17 GB at about 48,793 tokens/s; a 350M model peaked at 21.13 GB at about 19,143 tokens/s. Real training peaks are higher than the 16-bytes rule because of activations.
+- Measured here on the Spark, OBSERVED (local research note `own-model-results.md`, not public): a 124M model peaked at 10.17 GB at about 48,793 tokens/s; a 350M model peaked at 21.13 GB at about 19,143 tokens/s. Real training peaks are higher than the 16-bytes rule because of activations.
 - So with the simple "everyone holds the whole model" method, a 24 GB card is limited to roughly 350M to 1B parameters, and an 8 GB card cannot usefully pretrain even a 350M model. Typical card sizes: the September 2026 Steam survey lists the RTX 5070, 5060, 5060 Ti, 4060 and 3060 as the top five cards ([Steam hardware survey](https://store.steampowered.com/hwsurvey/videocard/)); their VRAM sizes (mostly 8 to 12 GB) are not on that page, UNVERIFIED [high confidence].
 - Escape routes: (a) split the model across nodes (SWARM, Pluralis, Petals style), which trades memory for network traffic; (b) train only small add-on weights (LoRA), where QLoRA reports fine-tuning a 65B model on one 48 GB GPU [arXiv 2305.14314](https://arxiv.org/abs/2305.14314); (c) mixture-of-experts where each node trains a few experts (SPES, [arXiv 2602.11543](https://arxiv.org/abs/2602.11543), title and abstract only read via search).
 - Psyche docs say only "NVIDIA GPU with sufficient VRAM for the model being trained"; it requires Linux, Docker and the NVIDIA container toolkit ([quickstart](https://github.com/PsycheFoundation/psyche/blob/main/psyche-book/src/enduser/quickstart-compute-provider.md)). No fixed minimum GPU is documented there.
@@ -198,7 +198,7 @@ Implication: to keep the rule, you would write the network, the work-unit logic,
 
 What I could see (head and grep only):
 
-- `~/workspace/aien-lm` today is Karpathy's nanoGPT, unmodified, pinned at commit 3adf61e, in a Python 3.12 virtual environment on the system PyTorch 2.14 (CUDA 13), plus benchmark scripts ([README](file:///home/drakestapleton/workspace/aien-lm/README.md)). I found no `src/train/` directory there, and `gh` could not resolve `aien-spark/aien-lm` or `aien-dev/aien-lm`, so the in-progress trainer you mentioned is not visible from this checkout. I did not assess it further.
+- `~/workspace/aien-lm` today is Karpathy's nanoGPT, unmodified, pinned at commit 3adf61e, in a Python 3.12 virtual environment on the system PyTorch 2.14 (CUDA 13), plus benchmark scripts (`~/workspace/aien-lm/README.md`). I found no `src/train/` directory there, and `gh` could not resolve `aien-spark/aien-lm` or `aien-dev/aien-lm`, so the in-progress trainer you mentioned is not visible from this checkout. I did not assess it further.
 - Its `train.py` supports multi-GPU only through PyTorch DistributedDataParallel (every step exchanges full gradients, which needs a fast local network). That does not work over home internet.
 - OBSERVED speeds: 124M at about 48,793 tokens/s, 350M at about 19,143 tokens/s on the Spark (own-model-results.md).
 
@@ -381,6 +381,6 @@ Law and standards:
 
 Model and dataset license metadata (Hugging Face API): PrimeIntellect/INTELLECT-1, INTELLECT-2, INTELLECT-3; 1Covenant/Covenant-72B; common-pile/comma-v0.1-1t; allenai/OLMo-2-1124-7B; HuggingFaceFW/fineweb-edu.
 
-Local files read (not public): /home/drakestapleton/open-humanity (README.md, CONSTITUTION.md, COVENANT.md, docs/, crates/beacon-core/src), /home/drakestapleton/.t3/projects/research/notes/own-model-plan.md and own-model-results.md, /home/drakestapleton/workspace/aien-lm/README.md.
+Local files read (not public): this repository (README.md, CONSTITUTION.md, COVENANT.md, docs/, crates/beacon-core/src), the local research notes own-model-plan.md and own-model-results.md, ~/workspace/aien-lm/README.md.
 
 Not opened in this pass (cited from search summaries only, so lower confidence): the SPES paper body, the Proof-of-Learning critique body, the Cosmopedia blog, the Akin Gump summary body beyond the search extract, and sahajBERT's Hugging Face blog (404).

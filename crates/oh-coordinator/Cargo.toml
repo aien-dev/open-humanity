@@ -9,9 +9,11 @@ repository.workspace = true
 [dependencies]
 oh-core = { path = "../oh-core" }
 beacon-core = { path = "../beacon-core" }
+aien-microjob.workspace = true
+p256.workspace = true
+sha2.workspace = true
 blake3 = "1.5"
 rand = "0.8"
-zeroize = "1"
 
 [dev-dependencies]
 oh-volunteer = { path = "../oh-volunteer" }

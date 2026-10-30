@@ -1,18 +1,24 @@
-//! Where the coordinator's Ed25519 signing key comes from.
+//! Shared coordinator and volunteer Ed25519 identity from atlas-vault.
 //!
-//! By default every start makes a fresh key that lives only in memory. With
-//! `--key-from-vault <NAME>` the coordinator asks atlas-vault for a 32-byte
-//! secret seed (`atlas-vault get <NAME>`, 64 hex characters on stdout) and
-//! rebuilds the same key from it on every start, so volunteers pin the
-//! coordinator once. The seed is read from the vault's stdout into memory,
-//! turned into a key with beacon-core (`Keypair::from_seed`), and wiped; it
-//! is never written to disk, printed or logged, and error messages never
-//! quote it.
-
+//! A 32-byte secret seed is read into memory from `atlas-vault get <NAME>`,
+//! converted into a signing key, and wiped. The seed is never written to
+//! disk, printed, or logged, and errors never quote it.
 use beacon_core::Keypair;
 use std::path::Path;
 use std::process::{Command, Stdio};
 use zeroize::Zeroize;
+
+/// Parses 64 hex characters into a 32-byte key.
+pub fn parse_key(hex: &str) -> Option<[u8; 32]> {
+    if hex.len() != 64 || !hex.is_ascii() {
+        return None;
+    }
+    let mut out = [0u8; 32];
+    for (i, byte) in out.iter_mut().enumerate() {
+        *byte = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).ok()?;
+    }
+    Some(out)
+}
 
 /// Rebuilds the key from the vault's output: exactly 64 hex characters
 /// (one 32-byte seed), surrounding whitespace allowed. Errors never include
@@ -69,7 +75,7 @@ pub fn keypair_from_vault(vault_bin: &Path, name: &str) -> Result<Keypair, Strin
         .map_err(|e| format!("cannot run {}: {e}", vault_bin.display()))?;
     let result = if out.status.success() {
         keypair_from_seed_hex(&out.stdout)
-            .map_err(|e| format!("vault entry {name:?} is not a coordinator key: {e}"))
+            .map_err(|e| format!("vault entry {name:?} is not an identity key: {e}"))
     } else {
         Err(format!(
             "{} get {name:?} failed ({})",
@@ -84,6 +90,12 @@ pub fn keypair_from_vault(vault_bin: &Path, name: &str) -> Result<Keypair, Strin
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    // Exclude writable executable fixtures from every other vault spawn in
+    // this test process. A concurrent pre-exec child can inherit the writer
+    // descriptor and keep the fixture ETXTBUSY after the writer closes it.
+    static VAULT_FIXTURES: Mutex<()> = Mutex::new(());
 
     const SEED_HEX: &str = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
 
@@ -118,6 +130,7 @@ mod tests {
 
     #[test]
     fn test_vault_that_cannot_run_or_fails_is_an_error() {
+        let _fixture = VAULT_FIXTURES.lock().unwrap();
         let missing = keypair_from_vault(Path::new("/nonexistent/atlas-vault"), "k");
         assert!(missing.err().unwrap().contains("cannot run"));
         let failing = keypair_from_vault(Path::new("/bin/false"), "k");
@@ -127,6 +140,7 @@ mod tests {
 
     #[test]
     fn test_vault_stdout_becomes_the_key() {
+        let _fixture = VAULT_FIXTURES.lock().unwrap();
         // A stand-in vault: a shell script that answers `get oh-test-key`
         // with the seed and refuses anything else.
         let dir = std::env::temp_dir().join(format!("oh-vault-test-{}", std::process::id()));

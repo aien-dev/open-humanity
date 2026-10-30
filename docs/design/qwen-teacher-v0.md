@@ -8,7 +8,7 @@ Status: merged to main in #18. Follow-up F1 changed the teaching step count to o
 
 ## Flow
 
-1. The volunteer runs `oh-volunteer teach --coordinator <addr>`. It connects like any volunteer and receives the current model and a signed work unit.
+1. The volunteer runs `oh-volunteer teach --coordinator <addr> --key-from-vault <NAME> --coordinator-key <hex>` after the coordinator has approved the public key printed by `oh-volunteer --print-key --key-from-vault <NAME>`. It connects like any approved volunteer and receives the current model and a signed work unit.
 2. It checks the work unit's signature and that the model matches `base_digest`. Nothing is sent if either check fails.
 3. It takes a topic hint from the work unit's shard: at most 200 bytes, printable ASCII only, whitespace collapsed, starting on a word boundary (`oh_volunteer::topic_hint`). The start position comes from the volunteer's seed and the round.
 4. It asks the local teacher: "Write a short clear passage that continues or explains this text. Reply with the passage only." followed by the hint (`teach_prompt`).
@@ -39,7 +39,7 @@ Frames: an update frame is unchanged. A teaching frame is the 8 bytes `OHTEACH1`
 
 ### Why one pass (follow-up F1)
 
-The first runs trained every passage for the run's 500 steps. With 8 byte pairs per step that is about 8 passes over a 500 byte passage, and the second batch overfit in both runs (T = -758.4 and -308.8). Measurement: `crates/oh-coordinator/tests/teaching_steps.rs`, no network. Same setup as `demo-teach.sh` (LICENSE corpus, 10% held-out, dim 32, seed 1, run steps 500, one teaching batch per round through the real `Coordinator`), with three fixed passages of plain English about software licenses (636, 499 and 501 bytes) in the style of the Qwen replies, fed in three orders.
+The first runs at commit `abd0b68` used the repository's then-AGPL `LICENSE` as the corpus and trained every passage for the run's 500 steps. With 8 byte pairs per step that was about 8 passes over a 500 byte passage; the second batch overfit in both original runs (historical T = -758.4 and -308.8). The historical figures and table below apply to that corpus, not to the current Apache-2.0 `LICENSE` adopted at `edce1f7`. The test still uses the current `LICENSE` with three fixed passages of plain English about software licenses (636, 499 and 501 bytes) in three orders, so it checks the stable behavioral distinction instead: fixed steps overfit at least one later batch in every order, while one pass keeps every batch positive. No network is used.
 
 Exploring passes per passage (order 1, 2, 3 = passages 1, 2, 3), Turings per batch:
 
@@ -51,9 +51,9 @@ Exploring passes per passage (order 1, 2, 3 = passages 1, 2, 3), Turings per bat
 | 2 passes | +6905.8 | +443.5 | -325.3 |
 | 3 passes | +7323.9 | +123.8 | -388.8 |
 
-One pass was the only setting where every batch scored positive in all three orders (other orders: +3668.0 +3067.4 +792.2 and +3669.9 +2961.2 +587.4, against +6720.5 -640.2 -45.3 and +7202.8 -938.6 -942.3 with 500 steps). It also leaves the model better off overall: in the first order the held-out bits per byte end at 5.8813 (calc:e9bbaeaa) against 6.0368 (calc:8059ce38) with 500 steps, because the later batches are applied instead of rejected. More passes give the first batch more credit and the later ones less or none, which pays for arriving early rather than for the text.
+On the historical AGPL corpus, one pass was the only setting where every batch scored positive in all three orders (other orders: +3668.0 +3067.4 +792.2 and +3669.9 +2961.2 +587.4, against +6720.5 -640.2 -45.3 and +7202.8 -938.6 -942.3 with 500 steps). It also left the model better off overall: in the first order the held-out bits per byte ended at 5.8813 (calc:e9bbaeaa) against 6.0368 (calc:8059ce38) with 500 steps, because the later batches were applied instead of rejected. These are historical measurements, not scores for the current Apache-2.0 corpus. More passes give the first batch more credit and the later ones less or none, which pays for arriving early rather than for the text.
 
-`test_fixed_steps_overfit_short_passages` pins the old failure and `test_every_batch_of_similar_english_scores_positive_with_scaled_steps` pins the fix. Limits: one seed, one model size, three hand-written passages; real Qwen passages and longer chains are not measured here. The pass count is tied to `TinyByteModel` (its `batch`); a real trainer needs its own measurement.
+`test_fixed_steps_overfit_short_passages` checks that the old fixed-step rule overfits a later batch on the current corpus and uses one-pass scoring as a negative control. `test_every_batch_of_similar_english_scores_positive_with_scaled_steps` separately pins the one-pass behavior. Limits: one seed, one model size, three hand-written passages; real Qwen passages and longer chains are not measured here. The pass count is tied to `TinyByteModel` (its `batch`); a real trainer needs its own measurement.
 
 ### Ordering inside a round
 
