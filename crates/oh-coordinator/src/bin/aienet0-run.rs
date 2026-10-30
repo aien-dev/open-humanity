@@ -11,6 +11,7 @@
 //!        aienet0-run bundle --keys DIR --out FILE
 //!                    [--m M --k K --n N --seed S] [--op matmul|compile]
 //!                    [--payload-kind K]
+//!                    [--document FILE --payload FILE]
 //!        aienet0-run run --listen ADDR --keys DIR --pins DIR --out DIR
 //!                    --recompute BIN --recompute-sha256 HEX
 //!                    [--m M --k K --n N --seed S] [--op matmul|compile]
@@ -22,6 +23,10 @@
 //! anything is sent; `run --resend FILE` then sends exactly those bytes.
 //! Replay is judged by the worker's persistent seen set, so a bundle that was
 //! never sent is admitted on its first `--resend`.
+//! `bundle --document FILE --payload FILE` seals externally encoded MJB1 bytes
+//! unchanged. Both files are required together; shape flags cannot be combined.
+//! The sealed bundle must pass worker admission with our own submitter key
+//! before any output file is created (including payload digest and expiry).
 //!
 //! `--keys DIR`: `transport.seed` (Ed25519 seed), `submitter.p256`,
 //! `verifier.p256` (P-256 scalars), all hex test identities, not a wallet.
@@ -36,9 +41,10 @@
 
 use aien_microjob::aienet0::{
     build_document, check_countersign, check_receipt, countersign, from_hex, public_key,
-    seal_bundle, signing_key_from_hex, split_bundle, to_hex, An0Refusal, MatmulU32, DOCUMENT_TTL,
+    admit_bundle, seal_bundle, signing_key_from_hex, split_bundle, to_hex, An0Refusal, MatmulU32,
+    DOCUMENT_TTL, MAX_PAYLOAD,
 };
-use aien_microjob::{compute_op, dag_digest, decode};
+use aien_microjob::{compute_op, dag_digest, decode, MAX_DOCUMENT};
 use oh_core::carrier::{recv_frame, send_frame, Frame};
 use oh_core::{coordinator_handshake_pinned, keypair_from_seed_hex};
 use sha2::{Digest, Sha256};
@@ -405,13 +411,40 @@ fn make_bundle(args: &[String], submitter: &P256) -> Result<Vec<u8>, Fail> {
     Ok(seal_bundle(&doc, &payload, submitter))
 }
 
+/// External documents retain their canonical identities and generation.
+/// Admission occurs before write_new creates even its temporary output.
+fn external_bundle(args: &[String], submitter: &P256) -> Result<Vec<u8>, Fail> {
+    let document = value(args, "--document");
+    let payload = value(args, "--payload");
+    let (Some(document), Some(payload)) = (document, payload) else {
+        return Err(Fail(2, "REFUSED AN0_EXTERNAL_PAIR: --document and --payload required together".into()));
+    };
+    for flag in ["--m", "--k", "--n", "--seed", "--op", "--payload-kind"] {
+        if args.iter().any(|a| a == flag) {
+            return Err(Fail(2, format!("REFUSED AN0_EXTERNAL_SHAPE: {flag} with --document")));
+        }
+    }
+    let document = read_bytes(Path::new(&document))?;
+    let payload = read_bytes(Path::new(&payload))?;
+    if document.len() > MAX_DOCUMENT || payload.len() > MAX_PAYLOAD {
+        return Err(refused(2, An0Refusal::BadBundle));
+    }
+    let bytes = seal_bundle(&document, &payload, submitter);
+    admit_bundle(&bytes, &public_key(submitter), now()).map_err(|r| refused(2, r))?;
+    Ok(bytes)
+}
+
 /// `bundle`: sign one job and store it without sending, for a reservation
 /// keyed on its dag_id.
 fn bundle(args: &[String]) -> Result<(), Fail> {
     let keys = PathBuf::from(need(args, "--keys")?);
     let submitter = p256_key(&keys.join("submitter.p256"))?;
     let path = PathBuf::from(need(args, "--out")?);
-    let bundle = make_bundle(args, &submitter)?;
+    let bundle = if args.iter().any(|a| a == "--document" || a == "--payload") {
+        external_bundle(args, &submitter)?
+    } else {
+        make_bundle(args, &submitter)?
+    };
     let (_, _, _, doc) = split_bundle(&bundle).map_err(|r| refused(2, r))?;
     let dag = to_hex(&dag_digest(doc));
     write_new(&path, &bundle)?;
@@ -472,7 +505,7 @@ fn main() -> ExitCode {
         Some("check") => check(&args),
         _ => Err(Fail(
             2,
-            "usage: aienet0-run keys|run|check ... (see source header)".into(),
+            "usage: aienet0-run keys|bundle|run|check ... (see source header)".into(),
         )),
     };
     match r {
@@ -502,6 +535,75 @@ mod tests {
             NEXT_TEMP.fetch_add(1, Ordering::Relaxed)));
         fs::create_dir_all(&dir).unwrap();
         dir
+    }
+
+    fn external_fixture() -> (PathBuf, Vec<String>, Vec<u8>, Vec<u8>) {
+        let dir = scratch();
+        let keys = dir.join("keys");
+        fs::create_dir(&keys).unwrap();
+        let scalar = format!("{:064x}", 1);
+        fs::write(keys.join("submitter.p256"), &scalar).unwrap();
+        let key = signing_key_from_hex(&scalar).unwrap();
+        let payload = MatmulU32 { m: 2, k: 3, n: 2, seed: 7 }.encode().to_vec();
+        let doc = build_document(&payload, compute_op::MATMUL, [9; 16], &public_key(&key), now());
+        fs::write(dir.join("document"), &doc).unwrap();
+        fs::write(dir.join("payload"), &payload).unwrap();
+        let args = vec!["bundle".into(), "--keys".into(), keys.display().to_string(),
+            "--out".into(), dir.join("bundle").display().to_string(),
+            "--document".into(), dir.join("document").display().to_string(),
+            "--payload".into(), dir.join("payload").display().to_string()];
+        (dir, args, doc, payload)
+    }
+
+    #[test]
+    fn external_document_is_admitted_and_preserved() {
+        let (dir, args, doc, payload) = external_fixture();
+        bundle(&args).unwrap();
+        let bytes = fs::read(dir.join("bundle")).unwrap();
+        let (_, _, got_payload, got_doc) = split_bundle(&bytes).unwrap();
+        assert_eq!(got_doc, doc);
+        assert_eq!(got_payload, payload);
+        let key = p256_key(&dir.join("keys/submitter.p256")).unwrap();
+        admit_bundle(&bytes, &public_key(&key), now()).unwrap();
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn external_operand_mismatch_writes_nothing() {
+        let (dir, args, _, mut payload) = external_fixture();
+        payload[14] ^= 1;
+        fs::write(dir.join("payload"), payload).unwrap();
+        let err = bundle(&args).unwrap_err();
+        assert!(err.1.contains("AN0_PAYLOAD_MISMATCH"), "{err:?}");
+        assert!(!dir.join("bundle").exists(), "mismatch must refuse before publication");
+        assert_eq!(fs::read_dir(&dir).unwrap().count(), 3, "no temporary output created");
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn external_tampered_document_writes_nothing() {
+        let (dir, args, mut doc, _) = external_fixture();
+        doc[0] ^= 1;
+        fs::write(dir.join("document"), doc).unwrap();
+        assert!(bundle(&args).is_err());
+        assert!(!dir.join("bundle").exists());
+        assert_eq!(fs::read_dir(&dir).unwrap().count(), 3);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn external_pair_and_shape_are_unambiguous() {
+        for suffix in [vec![], vec!["--m".into(), "2".into()]] {
+            let (dir, mut args, _, _) = external_fixture();
+            if suffix.is_empty() {
+                args.truncate(args.len() - 2);
+            } else {
+                args.extend(suffix);
+            }
+            assert_eq!(bundle(&args).unwrap_err().0, 2);
+            assert!(!dir.join("bundle").exists());
+            fs::remove_dir_all(dir).unwrap();
+        }
     }
 
     fn recompute_script(body: &str) -> (PathBuf, PathBuf, String) {
