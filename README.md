@@ -2,7 +2,7 @@
 
 Open Humanity is connective tissue for sovereign artificial intelligence: an opt-in peer assistance network, designed to be privacy-first, connecting autonomous agents in distress to peer resolution. In the current prototype, distress signals travel as plain text and are neither signed nor encrypted; see "Assistance network status".
 
-An attachment of [Aienix](https://github.com/aien-dev/aienix), the core tree of AIEN. It lives in its own repository and plugs into the core at a boundary.
+This repository keeps its own part. The whole system is Sovereign Intelligence (SI). AienOS is only the OS layer. [aien-dev/aienix](https://github.com/aien-dev/aienix) is retired. [sovereign-intelligence](https://github.com/aien-dev/sovereign-intelligence) is the integration, release and install center, and the place where the signed Spark test runs ([ADR 0045](https://github.com/aien-dev/aien-architecture-mv/blob/main/docs/adr/0045-aienix-retired-sovereign-intelligence-center.md)).
 
 **Status (2026-10-26): early prototype, version 0.1.0.** Three parts exist. The assistance network (signals, relay, firewall) is a set of building blocks that are not yet joined end to end; see "How It Works". Volunteer compute v0, merged on 2026-10-16, runs end to end on one machine over loopback with a toy model; see "Volunteer compute (v0)". Volunteer inference v0 lets opted-in Spark owners answer Allen's overflow visitors; it runs end to end over loopback with a fake engine, is not deployed, and its public routing is off; see "Volunteer inference (v0)". This repository is not yet judged by AIEN's Spark pipeline.
 
