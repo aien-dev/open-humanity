@@ -1281,6 +1281,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "oh-infer"
+version = "0.1.0"
+dependencies = [
+ "beacon-core",
+ "bincode",
+ "blake3",
+ "oh-core",
+ "rand 0.8.8",
+ "rustls",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 1.0.69",
+ "webpki-roots",
+]
+
+[[package]]
 name = "oh-share"
 version = "0.1.0"
 dependencies = [

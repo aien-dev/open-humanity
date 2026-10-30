@@ -414,6 +414,17 @@ mod tests {
     use std::process::{Command, Stdio};
     use std::sync::{Arc, Barrier};
 
+
+    /// Integration driver for the existing test-only crash boundaries.
+    /// The acceptance runner SIGKILLs this owned process after READY appears.
+    #[test]
+    #[ignore = "requires disposable integration keys and an owned requester"]
+    fn serve_crash_worker() {
+        let args = fs::read_to_string(std::env::var_os("AN0_TEST_SERVE_ARGS")
+            .expect("AN0_TEST_SERVE_ARGS")).unwrap();
+        let args: Vec<String> = args.lines().map(str::to_owned).collect();
+        serve(&args).unwrap();
+    }
     static NEXT: AtomicU64 = AtomicU64::new(0);
 
     fn scratch() -> PathBuf {
