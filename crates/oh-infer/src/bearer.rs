@@ -129,7 +129,10 @@ pub fn load_bearer_token(path: &Path) -> Result<Option<BearerToken>, TokenError>
         tok.fill(0);
     }
     if st != 0 {
-        return Err(TokenError::Io(shown, format!("the Omega token check stopped with status {st}")));
+        return Err(TokenError::Io(
+            shown,
+            format!("the Omega token check stopped with status {st}"),
+        ));
     }
     let (at, kind, mode) = if code < 20 {
         (dir.display().to_string(), "folder", 0o700)
@@ -240,11 +243,17 @@ mod tests {
         let (_t, f) = setup(GOOD.as_bytes(), 0o700, 0o640);
         let e = load_bearer_token(&f).unwrap_err().to_string();
         let p = f.display();
-        assert_eq!(e, format!("{p} has mode 0640; it must be 0600 (run: chmod 600 {p})"));
+        assert_eq!(
+            e,
+            format!("{p} has mode 0640; it must be 0600 (run: chmod 600 {p})")
+        );
         let (_t, f) = setup(GOOD.as_bytes(), 0o750, 0o600);
         let e = load_bearer_token(&f).unwrap_err().to_string();
         let d = f.parent().unwrap().display();
-        assert_eq!(e, format!("{d} has mode 0750; it must be 0700 (run: chmod 700 {d})"));
+        assert_eq!(
+            e,
+            format!("{d} has mode 0750; it must be 0700 (run: chmod 700 {d})")
+        );
     }
 
     #[test]
@@ -254,7 +263,10 @@ mod tests {
         let _s = std::os::unix::net::UnixListener::bind(&f).unwrap();
         std::fs::set_permissions(&f, std::fs::Permissions::from_mode(0o600)).unwrap();
         let e = load_bearer_token(&f).unwrap_err();
-        assert_eq!(e, TokenError::NotPrivate(format!("{} is not a file", f.display())));
+        assert_eq!(
+            e,
+            TokenError::NotPrivate(format!("{} is not a file", f.display()))
+        );
     }
 
     /// The compiled check is the one built from `om/tkcheck.om` as it is now.
@@ -264,7 +276,10 @@ mod tests {
         use sha2::Digest;
         let src = sha2::Sha256::digest(include_bytes!("../om/tkcheck.om"));
         let hex: String = src.iter().map(|b| format!("{b:02x}")).collect();
-        assert!(om::OMEGA2_IDENT_tkcheck.contains(&format!(" src={hex} ")), "om/gen is stale: run om/regen.sh");
+        assert!(
+            om::OMEGA2_IDENT_tkcheck.contains(&format!(" src={hex} ")),
+            "om/gen is stale: run om/regen.sh"
+        );
         // SAFETY: the bridge returns a static NUL-terminated string.
         let live = unsafe { std::ffi::CStr::from_ptr(om::omega2_ident_tkcheck().cast()) };
         assert_eq!(live.to_str().unwrap(), om::OMEGA2_IDENT_tkcheck);

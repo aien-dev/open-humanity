@@ -6,7 +6,11 @@
 
 fn main() {
     println!("cargo::rustc-check-cfg=cfg(oh_tkcheck)");
-    for f in ["om/gen/omega_native.c", "om/gen/omega_native.h", "om/gen/omega_native.rs"] {
+    for f in [
+        "om/gen/omega_native.c",
+        "om/gen/omega_native.h",
+        "om/gen/omega_native.rs",
+    ] {
         println!("cargo::rerun-if-changed={f}");
     }
     let os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
