@@ -1,0 +1,22 @@
+{
+  "extensions": {
+    "generated": {
+      "children": [],
+      "children_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "compiled_at": "2026-10-30T02:52:10Z",
+      "compiler": "crumb-compile/1",
+      "digest": "sha256:c95328a65d1e0777a0c9038e4faf5a6a7132e9bd11d00fa0217385cae3b40eb9",
+      "evidence_files": 0,
+      "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "files": 1,
+      "generated_at_commit": "15b5612139613eb775aac9469fbfdf93909572d7",
+      "source_tree": "sha256:ed8fc7c1fab865e8f8ce15667153679d97ecde9a8540a43d8cf8953ebebdd0b3"
+    }
+  },
+  "invariants": [
+    "Pin external actions to full commits and avoid persistent checkout credentials."
+  ],
+  "name": "workflows",
+  "purpose": "Read-only hosted SBOM generation; build and test run locally on the Spark.",
+  "schema_version": "1.0.0"
+}

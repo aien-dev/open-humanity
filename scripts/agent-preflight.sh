@@ -12,19 +12,34 @@ if [ "$BRANCH" = "main" ]; then
 fi
 echo "[+] PASSED: Branch isolation confirmed ($BRANCH)."
 
-# 2. Zero Disk Secrets Check
-if find . -maxdepth 3 -name ".env*" -not -path "./.git/*" | grep -q .; then
-    echo "[-] FAILED: Found plaintext .env file on disk. Hardware TPM vault required."
+# 2. Filename check only. This does not inspect file contents or prove vault operation.
+if ! ENV_PATHS=$(find . -maxdepth 3 -name ".env*" -not -path "./.git/*" -print -quit); then
+    echo "[-] FAILED: Could not complete the .env filename scan."
     exit 1
 fi
-echo "[+] PASSED: Zero disk secrets confirmed (Hardware TPM vault active)."
+if [ -n "$ENV_PATHS" ]; then
+    echo "[-] FAILED: Found a prohibited .env filename."
+    exit 1
+fi
+echo "[+] PASSED: No .env filenames found within three directory levels. File contents and vault operation were not checked."
 
 # 3. Unslop Standard (Zero em dashes or en dashes)
-DASH_VIOLATIONS=$(git diff HEAD | grep -E '^\+[^+]' | grep -v 'assert!' | grep -v 'replace' | grep -v 'contains' | grep -P '[\x{2014}\x{2013}]' || true)
-if [ -n "$DASH_VIOLATIONS" ]; then
-    echo "[-] FAILED: Found prohibited em dash or en dash in git diff:"
-    echo "$DASH_VIOLATIONS"
+SCRATCH=$(mktemp -d)
+trap 'rm -rf "$SCRATCH"' EXIT
+if ! git diff --no-ext-diff --no-textconv HEAD > "$SCRATCH/diff"; then
+    echo "[-] FAILED: Could not read the pending changes."
     exit 1
+fi
+awk '/^\+[^+]/ && !/assert!|replace|contains/ { print }' "$SCRATCH/diff" > "$SCRATCH/added"
+if grep -qP '[\x{2014}\x{2013}]' "$SCRATCH/added"; then
+    echo "[-] FAILED: Found prohibited em dash or en dash in pending added lines."
+    exit 1
+else
+    SCAN_STATUS=$?
+    if [ "$SCAN_STATUS" -ne 1 ]; then
+        echo "[-] FAILED: Could not complete the punctuation scan."
+        exit 1
+    fi
 fi
 echo "[+] PASSED: Unslop standard verified (zero em dashes and zero en dashes)."
 
