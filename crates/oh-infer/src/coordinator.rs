@@ -873,9 +873,9 @@ impl Coordinator {
                         return Err("stream mismatch".into());
                     }
                     self.mark(&peer, |r| r.served += 1);
-                    let _ = events.send(StreamEvent::Done {
-                        finish_reason: c.finish_reason.clone(),
-                    });
+                    // Queue the replay before the visitor's stream ends, so a
+                    // finished answer always has its sample already queued.
+                    let finish_reason = c.finish_reason.clone();
                     if sampled {
                         self.push_replay(Replay {
                             volunteer: peer,
@@ -883,6 +883,7 @@ impl Coordinator {
                             completion: c,
                         });
                     }
+                    let _ = events.send(StreamEvent::Done { finish_reason });
                     return Ok(());
                 }
                 VolMsg::Failed { job_id, reason } if job_id == job.job_id => {

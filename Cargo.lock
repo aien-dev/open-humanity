@@ -1287,7 +1287,7 @@ dependencies = [
  "beacon-core",
  "bincode",
  "blake3",
- "libc",
+ "cc",
  "oh-core",
  "rand 0.8.8",
  "rustls",

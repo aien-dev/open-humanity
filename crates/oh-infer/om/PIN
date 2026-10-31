@@ -1,0 +1,11 @@
+# What om/gen was generated with (om/regen.sh reads this file).
+# omega-bridge: tools/native --host (aien-dev/omega-bridge#54).
+BRIDGE_REPO=https://github.com/aien-dev/omega-bridge
+BRIDGE_COMMIT=c7f432cd93dc728a8c699b2787cd9a9513a7f84f
+# The bridge's generator compiler (OMEGA_NATIVE_OMC): omega-mv seed omc.
+OMC_SHA256=734f0a39319fbfa930bcc62cb30dbf06d47d78e126372b74f5baf478e6126b61
+# The OM-2 compiler (OMEGA_NATIVE_OMC2) that wrote tkcheck's code: omega-mv
+# feat/om2-fn-host-words dbc72448 (aien-dev/omega-mv#1008), seed/out/omc.
+OMC2_REPO=https://github.com/aien-dev/omega-mv
+OMC2_COMMIT=dbc72448cd20798595bccfdab9f3c81e8fe6ee45
+OMC2_SHA256=3988c31f9697a01f1436b7a75f6c956b37bc5301155b3ec8ca1b06b92118f7c4
