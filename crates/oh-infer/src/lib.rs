@@ -7,6 +7,7 @@
 //!
 //! Rust today, recorded with its Omega successor in that document.
 
+pub mod bearer;
 pub mod coordinator;
 pub mod engine;
 pub mod http;
