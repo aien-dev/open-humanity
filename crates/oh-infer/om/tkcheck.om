@@ -1,0 +1,199 @@
+note tkcheck.om: the engine bearer-token check of the Sovereign Intelligence wizard (installer/wizard/net.om
+note tkload), as an OM-2 function unit that Rust (oh-infer) and other callers reach through omega-bridge's
+note native ABI v2. It uses only the function-mode host words of an OM-2 unit (lstat fopen fstat read
+note fclose geteuid; AArch64 Linux, 128-byte stat: dev at 0, ino at 8, mode at 16, uid at 24, size at 48).
+note
+note tkcheck d f tok info: d is the folder, f the file inside it (path bytes, no terminating zero). The
+note result says what was found; info carries the detail named after each code:
+note   0 the token is in tok (64 lowercase hex digits)       1 there is no file at f
+note  10 d: lstat failed (info: errno)  11 d is a link  12 d is not a folder
+note  13 d belongs to another user (info: its uid)  14 d's permission bits are not 0700 (info: the bits)
+note  20 f: lstat failed (info: errno)  21 f is a link  22 f is not a regular file
+note  23 f belongs to another user (info: its uid)  24 f's permission bits are not 0600 (info: the bits)
+note  30 f is not 65 bytes long (info: its size)
+note  31 opening f failed (info: errno)  32 fstat of the open file failed (info: errno)
+note  33 the open file is not the one checked (device or inode changed)
+note  34 reading failed (info: errno)  35 the content is not 64 lowercase hex digits and a newline
+note f is lstat-ed before d, so a missing file is code 1 whatever d is. The open uses O_NOFOLLOW,
+note O_NONBLOCK (a FIFO swapped in cannot block) and O_CLOEXEC (559104 on AArch64). Nothing between the
+note open and the close can trap, so a trap can never leak the descriptor. The local copy of the token is
+note zeroed before every return.
+om2
+fn su32 s view uchar 128 o ulong to ulong
+x = ulong 0
+for i ulong 4
+x = or x shl ulong get s add o i mul i 8
+end
+ret x
+end
+
+fn su64 s view uchar 128 o ulong to ulong
+x = ulong 0
+for i ulong 8
+x = or x shl ulong get s add o i mul i 8
+end
+ret x
+end
+
+fn errno r long to ulong
+ret ulong neg r
+end
+
+note kind: 0 when the stat in s is a folder (ty 16384) or file (ty 32768) of this user with exactly the
+note bits md; otherwise 1 link, 2 another kind, 3 another owner, 4 other bits; the detail goes in nf.
+fn kind s view uchar 128 ty ulong md ulong nf edit ulong 1 to long
+m = su32 s 16
+t = and m 61440
+if eq t 40960
+ret 1
+end
+if ne t ty
+ret 2
+end
+u = ulong geteuid
+w = su32 s 24
+if ne w u
+put nf 0 w
+ret 3
+end
+b = and m 4095
+if ne b md
+put nf 0 b
+ret 4
+end
+ret 0
+end
+
+fn hex c uchar to bool
+if and ge c 48 le c 57
+ret true
+end
+ret and ge c 97 le c 102
+end
+
+note rdall: read up to 66 bytes of fd into t; the count, or minus errno. An interrupted read is retried;
+note every other pass adds at least one byte, so 66 data passes and 64 retries bound the loop.
+fn rdall fd int t edit uchar 66 to long
+n = ulong 0
+e = ulong 0
+for p ulong 130
+if eq n 66
+break
+end
+k = read fd t n sub 66 n
+if eq k -4
+e = add e 1
+if gt e 64
+ret k
+end
+continue
+end
+if lt k 0
+ret k
+end
+if eq k 0
+break
+end
+n = add n ulong k
+end
+ret long n
+end
+
+note fdread: fstat the open fd, compare its device and inode with the lstat in s, read it into t.
+fn fdread fd int s view uchar 128 t edit uchar 66 nf edit ulong 1 to long
+o = new uchar 128 0
+r = fstat fd o 0 128
+if ne r 0
+put nf 0 errno r
+ret 32
+end
+if ne su64 o 0 su64 s 0
+ret 33
+end
+if ne su64 o 8 su64 s 8
+ret 33
+end
+n = rdall fd t
+if lt n 0
+put nf 0 errno n
+ret 34
+end
+if ne n 65
+ret 35
+end
+ret 0
+end
+
+fn wipe t edit uchar 66 to void
+for i ulong 66
+put t i 0
+end
+end
+
+fn token t edit uchar 66 tok out uchar 64 to long
+if ne get t 64 10
+ret 35
+end
+for i ulong 64
+if not hex get t i
+ret 35
+end
+end
+for i ulong 64
+put tok i get t i
+end
+ret 0
+end
+
+fn opened f view uchar * s view uchar 128 tok out uchar 64 nf edit ulong 1 to long
+fd = fopen f 0 len f 559104 0
+if lt fd 0
+put nf 0 errno fd
+ret 31
+end
+t = new uchar 66 0
+c = fdread int fd s t nf
+z = fclose int fd
+if eq c 0
+c = token t tok
+end
+wipe t
+ret c
+end
+
+export fn tkcheck d view uchar * f view uchar * tok out uchar 64 info out ulong 1 to long
+s = new uchar 128 0
+nf = new ulong 1 0
+r = lstat f 0 len f s 0 128
+if eq r -2
+ret 1
+end
+if ne r 0
+put info 0 errno r
+ret 20
+end
+g = new uchar 128 0
+q = lstat d 0 len d g 0 128
+if ne q 0
+put info 0 errno q
+ret 10
+end
+k = kind g 16384 448 nf
+if ne k 0
+put info 0 get nf 0
+ret add k 10
+end
+k = kind s 32768 384 nf
+if ne k 0
+put info 0 get nf 0
+ret add k 20
+end
+z = su64 s 48
+if ne z 65
+put info 0 z
+ret 30
+end
+c = opened f s tok nf
+put info 0 get nf 0
+ret c
+end

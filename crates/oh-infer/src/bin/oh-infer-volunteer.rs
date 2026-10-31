@@ -9,7 +9,15 @@
 //! oh-infer-volunteer run --coordinator <https://host/path> --coordinator-key <hex>
 //!     (--key-file <path> | --key-from-vault <NAME> [--vault-bin <path>])
 //!     --manifest <path> --model-dir <dir> --model-digest <hex>
-//!     [--engine <127.0.0.1:port>] [--engine-bin <path>] [--pause-file <path>] [--once]
+//!     [--engine <127.0.0.1:port>] [--engine-bin <path>] [--engine-token-file <path>]
+//!     [--pause-file <path>] [--once]
+//!
+//! The engine's bearer token is read from `--engine-token-file`, by default
+//! `$HOME/.local/share/aienos/auth/bearer-token` (the SI wizard's file), and
+//! sent to the engine as `Authorization: Bearer`. The folder must be 0700
+//! and the file 0600, both this user's, and the file 64 lowercase hex digits
+//! and a newline; anything else is refused (exit 5). With no file, requests
+//! go without the header, as the shipped engine expects.
 //!
 //! Any command takes `--config <file>`: `name value` lines for the same
 //! options (without `--`); options given on the command line win.
@@ -19,6 +27,7 @@
 
 use beacon_core::Keypair;
 use oh_core::{keypair_from_seed_hex, keypair_from_vault, parse_key};
+use oh_infer::bearer::{default_token_path, load_bearer_token, BearerToken};
 use oh_infer::engine::{HttpEngine, DEFAULT_ENGINE_ADDR};
 use oh_infer::model::{sha256_file, verify_model};
 use oh_infer::protocol::hex;
@@ -139,6 +148,36 @@ fn digest_arg(o: &HashMap<String, String>, name: &str) -> Result<Option<[u8; 32]
     }
 }
 
+/// The engine token named by `--engine-token-file` or the SI default path.
+/// `Ok(None)` (with one log line) when there is no file; never logs the token.
+fn engine_token(o: &HashMap<String, String>) -> Result<Option<BearerToken>, String> {
+    let Some(path) = o
+        .get("engine-token-file")
+        .map(PathBuf::from)
+        .or_else(default_token_path)
+    else {
+        eprintln!("oh-infer-volunteer: no engine bearer token: HOME is not set and no --engine-token-file was given; requests go without one");
+        return Ok(None);
+    };
+    match load_bearer_token(&path) {
+        Ok(Some(t)) => {
+            eprintln!(
+                "oh-infer-volunteer: engine bearer token loaded from {}",
+                path.display()
+            );
+            Ok(Some(t))
+        }
+        Ok(None) => {
+            eprintln!(
+                "oh-infer-volunteer: no engine bearer token at {}; requests go without one",
+                path.display()
+            );
+            Ok(None)
+        }
+        Err(e) => Err(e.to_string()),
+    }
+}
+
 fn main() -> ExitCode {
     let all: Vec<String> = std::env::args().skip(1).collect();
     let Some(cmd) = all.first().cloned() else {
@@ -251,6 +290,13 @@ fn run(o: &HashMap<String, String>, once: bool) -> ExitCode {
             return ExitCode::from(6);
         }
     };
+    let bearer = match engine_token(o) {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!("oh-infer-volunteer: refusing the engine token: {e}");
+            return ExitCode::from(5);
+        }
+    };
     eprintln!("oh-infer-volunteer: checking every model file against the pinned manifest");
     let model = match verify_model(
         Path::new(&o["manifest"]),
@@ -283,7 +329,8 @@ fn run(o: &HashMap<String, String>, once: bool) -> ExitCode {
         engine_digest,
         pause_file: o.get("pause-file").map(PathBuf::from),
     };
-    let engine = HttpEngine::new(o.get("engine").map_or(DEFAULT_ENGINE_ADDR, String::as_str));
+    let engine = HttpEngine::new(o.get("engine").map_or(DEFAULT_ENGINE_ADDR, String::as_str))
+        .with_bearer(bearer);
     eprintln!(
         "oh-infer-volunteer: model {} verified; key {}; connecting to {}:{} (outbound only)",
         model.name,

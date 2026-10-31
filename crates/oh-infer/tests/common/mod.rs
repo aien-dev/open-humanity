@@ -33,19 +33,42 @@ pub fn honest_reply(request: &serde_json::Value) -> String {
 pub struct FakeEngine {
     pub addr: String,
     pub seen: Arc<Mutex<Vec<serde_json::Value>>>,
+    /// The `Authorization` header of every request, in arrival order.
+    pub auth: Arc<Mutex<Vec<Option<String>>>>,
 }
 
 pub fn fake_engine(reply: fn(&serde_json::Value) -> String) -> FakeEngine {
+    fake_engine_requiring(reply, None)
+}
+
+/// Like `fake_engine`, but when `token` is set it answers 401 to any
+/// request whose `Authorization` is not `Bearer <token>`, as an SI Core main
+/// engine does.
+pub fn fake_engine_requiring(
+    reply: fn(&serde_json::Value) -> String,
+    token: Option<String>,
+) -> FakeEngine {
     let l = TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = l.local_addr().unwrap().to_string();
     let seen = Arc::new(Mutex::new(Vec::new()));
     let rec = seen.clone();
+    let auth = Arc::new(Mutex::new(Vec::new()));
+    let auth_rec = auth.clone();
     thread::spawn(move || {
         for c in l.incoming() {
             let Ok(mut s) = c else { continue };
             let Ok(req) = read_request(&mut s, 1 << 20) else {
                 continue;
             };
+            let got = req.head.header("authorization").map(str::to_string);
+            auth_rec.lock().unwrap().push(got.clone());
+            if let Some(t) = &token {
+                if got.as_deref() != Some(format!("Bearer {t}").as_str()) {
+                    let out = r#"{"error":"missing or wrong bearer token"}"#;
+                    let _ = write!(s, "HTTP/1.1 401 Unauthorized\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}", out.len(), out);
+                    continue;
+                }
+            }
             let body: serde_json::Value = serde_json::from_slice(&req.body).unwrap();
             rec.lock().unwrap().push(body.clone());
             let text = reply(&body);
@@ -75,7 +98,7 @@ pub fn fake_engine(reply: fn(&serde_json::Value) -> String) -> FakeEngine {
             let _ = write!(s, "0\r\n\r\n");
         }
     });
-    FakeEngine { addr, seen }
+    FakeEngine { addr, seen, auth }
 }
 
 /// A temporary model folder: two "weight" files and a manifest.
@@ -173,16 +196,16 @@ impl<E: Engine> Engine for Recording<E> {
     }
 }
 
+/// A volunteer session thread.
+pub type SessionThread = thread::JoinHandle<Result<SessionReport, VolunteerError>>;
+
 /// Runs an honest volunteer agent session in a thread.
 pub fn spawn_volunteer(
     running: &Running,
     model: &ModelDir,
     keypair: Keypair,
     engine_addr: &str,
-) -> (
-    thread::JoinHandle<Result<SessionReport, VolunteerError>>,
-    Arc<Mutex<Vec<Job>>>,
-) {
+) -> (SessionThread, Arc<Mutex<Vec<Job>>>) {
     let jobs = Arc::new(Mutex::new(Vec::new()));
     let engine = Recording {
         inner: HttpEngine::new(engine_addr),

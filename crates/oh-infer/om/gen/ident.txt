@@ -1,0 +1,1 @@
+omega-ident 1 unit=tkcheck abi=2 profile=OM-2 src=9b5463044a7bb6a38c4c48c39f0469fbfdb81fac679c6e4a717adf43c7a214ba omc=3988c31f9697a01f1436b7a75f6c956b37bc5301155b3ec8ca1b06b92118f7c4 host=fclose,fopen,fstat,geteuid,lstat path=om/tkcheck.om

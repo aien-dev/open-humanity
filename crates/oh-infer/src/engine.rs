@@ -3,6 +3,7 @@
 //! default). Only loopback addresses are accepted, so the job text goes no
 //! further than this machine on its way to the engine.
 
+use crate::bearer::BearerToken;
 use crate::http::{parse_head, read_head, Body};
 use crate::protocol::{Job, MAX_OUTPUT_BYTES};
 use oh_core::resolve_teacher_addr;
@@ -42,6 +43,9 @@ pub trait Engine {
 pub struct HttpEngine {
     pub addr: String,
     pub timeout: Duration,
+    /// Sent as `Authorization: Bearer` when set (SI Core main engines
+    /// refuse a request without it).
+    pub bearer: Option<BearerToken>,
 }
 
 impl HttpEngine {
@@ -49,7 +53,13 @@ impl HttpEngine {
         Self {
             addr: addr.trim_start_matches("http://").to_string(),
             timeout: Duration::from_secs(300),
+            bearer: None,
         }
+    }
+
+    pub fn with_bearer(mut self, token: Option<BearerToken>) -> Self {
+        self.bearer = token;
+        self
     }
 }
 
@@ -84,13 +94,21 @@ impl Engine for HttpEngine {
         s.set_read_timeout(Some(self.timeout))?;
         s.set_write_timeout(Some(self.timeout))?;
         let body = request_body(job).to_string();
-        write!(
+        let auth = match &self.bearer {
+            Some(t) => format!("Authorization: Bearer {}\r\n", t.as_str()),
+            None => String::new(),
+        };
+        let sent = write!(
             s,
-            "POST /v1/chat/completions HTTP/1.1\r\nHost: {}\r\nContent-Type: application/json\r\nAccept: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+            "POST /v1/chat/completions HTTP/1.1\r\nHost: {}\r\n{}Content-Type: application/json\r\nAccept: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
             self.addr,
+            auth,
             body.len(),
             body
-        )?;
+        );
+        let mut auth = auth.into_bytes();
+        auth.fill(0);
+        sent?;
         s.flush()?;
         let head = parse_head(&read_head(&mut s)?)?;
         if head.first != "200" {

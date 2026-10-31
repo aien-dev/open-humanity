@@ -147,7 +147,8 @@ What this does not stop:
 oh-infer-volunteer init --key-file ~/.local/share/aienos/lend/key       # prints "volunteer key <hex>" to register
 oh-infer-volunteer verify --manifest M --model-dir D --model-digest HEX
 oh-infer-volunteer run --coordinator https://www.aienos.com/oh/v1/volunteer --coordinator-key HEX \
-    --key-file K --manifest M --model-dir D --model-digest HEX [--engine 127.0.0.1:18100] [--pause-file P]
+    --key-file K --manifest M --model-dir D --model-digest HEX [--engine 127.0.0.1:18100] [--pause-file P] \
+    [--engine-token-file T]
 oh-infer-volunteer pause|resume --pause-file P
 
 oh-infer-coordinator --model-id qwen3.6-35b-a3b-fp8-95a723d0 --model-digest HEX --engine-digest HEX \
@@ -158,6 +159,10 @@ oh-infer-coordinator reinstate --state-dir D HEX
 
 The volunteer identity seed is a 64-hex-character file, mode 0600, in the owner's home. `init` creates it and never overwrites an existing key, and `run` refuses a key file that other users can read. This departs from the repository's vault-only rule for training volunteers. Volunteer owners do not have atlas-vault, so the key is stored like an SSH key. `--key-from-vault` still works where a vault exists. The successor is a TPM-sealed key (see below).
 
+A local engine that requires a bearer token (Core `aien-serve-http` from main, set up by the SI wizard; see aien-dev/sovereign-intelligence#66, DRA-56) gets `Authorization: Bearer <token>` on every request. `run` reads the token from `--engine-token-file`, or from `$HOME/.local/share/aienos/auth/bearer-token` when the option is absent, and holds it to the wizard's rules: the folder mode 0700 and the file mode 0600, both owned by this user, neither a symbolic link, and the file exactly 64 lowercase hex digits and a newline. Any other mode, owner or content is refused with exit 5 and a message naming the file; the token itself is never logged. With no file, `run` logs one line saying so and sends requests without the header, as before (the shipped engine 59b05a71 enforces no token).
+
+The check is first-party Omega, not Rust: `crates/oh-infer/om/tkcheck.om` (an OM-2 unit using the host words `lstat fopen fstat fclose geteuid` and `read`) is bound by omega-bridge's native ABI v2 (`tools/native --host`, aien-dev/omega-bridge#54, compiled by the OM-2 compiler of aien-dev/omega-mv#1008, omc 3988c31f) into `om/gen`, which `build.rs` compiles with `cc` into the crate. Rust calls it in-process; there is no subprocess and no `libc` dependency in oh-infer. The generated files are committed; `sh crates/oh-infer/om/regen.sh --check` (pins in `om/PIN`) confirms they match a fresh generation. The embedded code is AArch64 Linux only; on any other target an existing token file is refused with a message saying so, and no file still means no token.
+
 ## Tests
 
 `cargo test -p oh-infer`:
@@ -167,6 +172,7 @@ The volunteer identity seed is a 64-hex-character file, mode 0600, in the owner'
 - `tampered_model`: a modified weight byte is refused (library and binary, exit 5). A consistent but different manifest is refused against the pin. The coordinator refuses an attestation with a tampered hash, and the same key with the pinned hash is accepted as the control. An unregistered key is refused. An honest agent pinned to another model never attests.
 - `divergence`: a volunteer whose reply differs from the reference is suspended, its session ends, routing stops, reconnection is refused, the suspension survives a restart, the event log holds no text, and reinstatement clears it. The control: an honest volunteer gains 3 reputation over 3 verified replies. A volunteer that signs a reply different from what it streamed is suspended immediately.
 - `privacy`: seven bodies carrying forbidden fields get 400, four identity headers get 403, missing or false consent is refused, and none of it reaches the volunteer. The one clean request reaches the volunteer as exactly the system prompt plus three messages, with only the expected JSON keys and none of six planted markers. A negative control shows that the marker check detects a planted marker.
+- `engine_token`: an engine that requires the token answers with it and refuses no token and a wrong token (401); the volunteer binary reads the wizard's file from `HOME` and its streamed answer arrives, the token absent from its log; without a file it logs one "no engine bearer token" line and sends no header (401 from an enforcing engine, the answer from one that needs none); a token file at 0644 is refused with exit 5, the same file at 0600 as the control. The `bearer` unit tests refuse modes 0644/0640/0604/0400/0660, folders at 0755/0750/0711, a symbolic link, a socket in place of the file and seven malformed contents; they check the exact mode messages, that `Debug` never shows the token, and that the compiled Omega check carries the source digest of `om/tkcheck.om` (a stale `om/gen` fails).
 
 Mutation check (2026-10-26, each mutant applied alone to a scratch copy): each of these makes its test fail.
 
