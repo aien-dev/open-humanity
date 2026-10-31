@@ -1298,6 +1298,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "oh-share"
+version = "0.1.0"
+dependencies = [
+ "beacon-core",
+ "bincode",
+ "blake3",
+ "rand 0.8.8",
+ "serde",
+ "thiserror 1.0.69",
+ "x25519-dalek",
+]
+
+[[package]]
 name = "oh-volunteer"
 version = "0.1.0"
 dependencies = [
