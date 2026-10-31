@@ -110,8 +110,11 @@ pub enum ErasureStatus {
     NotVerifiablyErased,
 }
 
-/// The owner moves from `old_key` to `new_key`. Signed by both keys, so
-/// neither a stolen old key alone nor an unrelated key can rotate.
+/// The owner moves from `old_key` to `new_key`. Signed by both keys: the old
+/// signature proves the rotation comes from the current key (an unrelated key
+/// cannot rotate) and the new signature proves possession of the new key. A
+/// stolen old key can still rotate to a key the thief holds; this protocol
+/// has no recovery path for that case.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct KeyRotation {
     pub version: u16,
